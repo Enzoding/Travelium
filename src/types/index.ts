@@ -32,5 +32,20 @@ export type Podcast = {
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
-export type BookWithoutId = Omit<Book, "id" | "createdAt" | "updatedAt" | "userId">;
-export type PodcastWithoutId = Omit<Podcast, "id" | "createdAt" | "updatedAt" | "userId">;
+// 修改这些类型定义，使其与实际使用一致
+export type BookWithoutId = {
+  title: string;
+  author: string;
+  description: string;
+  coverUrl?: string;
+  countries: Country[];
+};
+
+export type PodcastWithoutId = {
+  title: string;
+  author: string;
+  description: string;
+  coverUrl?: string;
+  audioUrl: string;
+  countries: Country[];
+};

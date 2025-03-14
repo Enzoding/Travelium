@@ -1,15 +1,175 @@
+"use client"
+
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { Book, Country, Podcast } from '@/types';
 
 interface GlobeMapProps {
   className?: string;
+  books?: Book[];
+  podcasts?: Podcast[];
+  showUserItems?: boolean;
+  onMarkerClick?: (type: 'book' | 'podcast', item: Book | Podcast) => void;
 }
 
-function GlobeMap({ className }: GlobeMapProps) {
+function GlobeMap({ 
+  className, 
+  books = [], 
+  podcasts = [], 
+  showUserItems = false,
+  onMarkerClick 
+}: GlobeMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+
+  // 清除所有标记
+  const clearMarkers = () => {
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+  };
+
+  // 添加标记到地图
+  const addMarkers = () => {
+    if (!map.current || !mapLoaded) return;
+    
+    clearMarkers();
+
+    // 处理书籍标记
+    books.forEach(book => {
+      book.countries.forEach(country => {
+        // 这里需要根据国家代码获取经纬度坐标
+        // 实际应用中应该有一个国家代码到经纬度的映射
+        const coordinates = getCountryCoordinates(country.code);
+        if (!coordinates || !map.current) return;
+
+        const el = document.createElement('div');
+        el.className = 'book-marker';
+        el.style.width = '24px';
+        el.style.height = '24px';
+        el.style.backgroundImage = 'url(/icons/book-marker.svg)';
+        el.style.backgroundSize = 'cover';
+        el.style.cursor = 'pointer';
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat(coordinates)
+          .addTo(map.current);
+
+        // 添加点击事件
+        el.addEventListener('click', () => {
+          onMarkerClick?.('book', book);
+        });
+
+        markersRef.current.push(marker);
+      });
+    });
+
+    // 处理播客标记
+    podcasts.forEach(podcast => {
+      podcast.countries.forEach(country => {
+        const coordinates = getCountryCoordinates(country.code);
+        if (!coordinates || !map.current) return;
+
+        const el = document.createElement('div');
+        el.className = 'podcast-marker';
+        el.style.width = '24px';
+        el.style.height = '24px';
+        el.style.backgroundImage = 'url(/icons/podcast-marker.svg)';
+        el.style.backgroundSize = 'cover';
+        el.style.cursor = 'pointer';
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat(coordinates)
+          .addTo(map.current);
+
+        // 添加点击事件
+        el.addEventListener('click', () => {
+          onMarkerClick?.('podcast', podcast);
+        });
+
+        markersRef.current.push(marker);
+      });
+    });
+  };
+
+  // 高亮国家
+  const highlightCountries = () => {
+    if (!map.current || !mapLoaded) return;
+
+    // 获取所有相关国家及其关联次数
+    const countryOccurrences: Record<string, number> = {};
+    
+    books.forEach(book => {
+      book.countries.forEach(country => {
+        countryOccurrences[country.code] = (countryOccurrences[country.code] || 0) + 1;
+      });
+    });
+    
+    podcasts.forEach(podcast => {
+      podcast.countries.forEach(country => {
+        countryOccurrences[country.code] = (countryOccurrences[country.code] || 0) + 1;
+      });
+    });
+
+    // 如果地图已经加载了国家边界数据，则添加填充图层
+    if (map.current.getSource('countries')) {
+      // 移除现有的高亮图层（如果存在）
+      if (map.current.getLayer('countries-highlighted')) {
+        map.current.removeLayer('countries-highlighted');
+      }
+
+      // 添加高亮图层
+      map.current.addLayer({
+        id: 'countries-highlighted',
+        type: 'fill',
+        source: 'countries',
+        'source-layer': 'country_boundaries',
+        layout: {},
+        paint: {
+          'fill-color': [
+            'case',
+            ['in', ['get', 'iso_3166_1'], ['literal', Object.keys(countryOccurrences)]],
+            [
+              'interpolate',
+              ['linear'],
+              ['get', ['to-string', ['get', 'iso_3166_1']], ['literal', countryOccurrences], 0],
+              1, 'rgba(255, 180, 0, 0.3)',
+              5, 'rgba(255, 180, 0, 0.5)',
+              10, 'rgba(255, 180, 0, 0.7)'
+            ],
+            'rgba(0, 0, 0, 0)'
+          ],
+          'fill-outline-color': 'rgba(255, 255, 255, 0.5)'
+        }
+      });
+    }
+  };
+
+  // 获取国家中心坐标（示例实现，实际应用中需要完整的数据）
+  const getCountryCoordinates = (countryCode: string): [number, number] | null => {
+    // 这里应该有一个完整的国家代码到坐标的映射
+    // 以下是一些示例数据
+    const coordinates: Record<string, [number, number]> = {
+      'US': [-95.7129, 37.0902],
+      'CN': [104.1954, 35.8617],
+      'JP': [138.2529, 36.2048],
+      'GB': [-3.4360, 55.3781],
+      'FR': [2.2137, 46.2276],
+      'DE': [10.4515, 51.1657],
+      'IT': [12.5674, 41.8719],
+      'ES': [-3.7492, 40.4637],
+      'AU': [133.7751, -25.2744],
+      'BR': [-51.9253, -14.2350],
+      'CA': [-106.3468, 56.1304],
+      'IN': [78.9629, 20.5937],
+      'RU': [105.3188, 61.5240],
+      // 添加更多国家...
+    };
+    
+    return coordinates[countryCode] || null;
+  };
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -42,17 +202,45 @@ function GlobeMap({ className }: GlobeMapProps) {
         'star-intensity': 0.6, // 星星亮度
       });
 
+      // 加载国家边界数据
+      map.current.addSource('countries', {
+        type: 'vector',
+        url: 'mapbox://mapbox.country-boundaries-v1'
+      });
+
+      // 添加国家边界线图层
+      map.current.addLayer({
+        id: 'countries-boundaries',
+        type: 'line',
+        source: 'countries',
+        'source-layer': 'country_boundaries',
+        layout: {},
+        paint: {
+          'line-color': 'rgba(255, 255, 255, 0.3)',
+          'line-width': 1
+        }
+      });
+
       setMapLoaded(true);
     });
 
     // 清理函数
     return () => {
+      clearMarkers();
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
   }, []);
+
+  // 当书籍或播客数据变化时，更新标记和高亮
+  useEffect(() => {
+    if (mapLoaded) {
+      addMarkers();
+      highlightCountries();
+    }
+  }, [books, podcasts, mapLoaded, showUserItems]);
 
   return (
     <div 

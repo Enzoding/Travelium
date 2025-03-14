@@ -29,6 +29,9 @@ interface DataContextProps {
   
   // 错误处理
   error: string | null
+  
+  // 通用加载状态
+  isLoading: boolean
 }
 
 const DataContext = createContext<DataContextProps | undefined>(undefined)
@@ -52,10 +55,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // 错误状态
   const [error, setError] = useState<string | null>(null)
   
+  // 通用加载状态
+  const [isLoading, setIsLoading] = useState(false)
+  
   // 获取书籍列表
   const fetchBooks = async () => {
     if (!user) return
     
+    setIsLoading(true)
     setIsLoadingBooks(true)
     setError(null)
     try {
@@ -65,6 +72,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error("获取书籍列表时出错:", error)
       setError((error as Error).message)
     } finally {
+      setIsLoading(false)
       setIsLoadingBooks(false)
     }
   }
@@ -73,6 +81,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const addBook = async (book: BookWithoutId) => {
     if (!user) return
     
+    setIsLoading(true)
     setIsLoadingBooks(true)
     setError(null)
     try {
@@ -82,6 +91,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error("添加书籍时出错:", error)
       setError((error as Error).message)
     } finally {
+      setIsLoading(false)
       setIsLoadingBooks(false)
     }
   }
@@ -90,6 +100,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const updateBook = async (id: string, book: BookWithoutId) => {
     if (!user) return
     
+    setIsLoading(true)
     setIsLoadingBooks(true)
     setError(null)
     try {
@@ -99,6 +110,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error("更新书籍时出错:", error)
       setError((error as Error).message)
     } finally {
+      setIsLoading(false)
       setIsLoadingBooks(false)
     }
   }
@@ -107,6 +119,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const deleteBook = async (id: string) => {
     if (!user) return
     
+    setIsLoading(true)
     setIsLoadingBooks(true)
     setError(null)
     try {
@@ -116,6 +129,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error("删除书籍时出错:", error)
       setError((error as Error).message)
     } finally {
+      setIsLoading(false)
       setIsLoadingBooks(false)
     }
   }
@@ -124,6 +138,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const fetchPodcasts = async () => {
     if (!user) return
     
+    setIsLoading(true)
     setIsLoadingPodcasts(true)
     setError(null)
     try {
@@ -133,6 +148,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error("获取播客列表时出错:", error)
       setError((error as Error).message)
     } finally {
+      setIsLoading(false)
       setIsLoadingPodcasts(false)
     }
   }
@@ -141,6 +157,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const addPodcast = async (podcast: PodcastWithoutId) => {
     if (!user) return
     
+    setIsLoading(true)
     setIsLoadingPodcasts(true)
     setError(null)
     try {
@@ -150,6 +167,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error("添加播客时出错:", error)
       setError((error as Error).message)
     } finally {
+      setIsLoading(false)
       setIsLoadingPodcasts(false)
     }
   }
@@ -158,6 +176,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const updatePodcast = async (id: string, podcast: PodcastWithoutId) => {
     if (!user) return
     
+    setIsLoading(true)
     setIsLoadingPodcasts(true)
     setError(null)
     try {
@@ -167,6 +186,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error("更新播客时出错:", error)
       setError((error as Error).message)
     } finally {
+      setIsLoading(false)
       setIsLoadingPodcasts(false)
     }
   }
@@ -175,6 +195,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const deletePodcast = async (id: string) => {
     if (!user) return
     
+    setIsLoading(true)
     setIsLoadingPodcasts(true)
     setError(null)
     try {
@@ -184,12 +205,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error("删除播客时出错:", error)
       setError((error as Error).message)
     } finally {
+      setIsLoading(false)
       setIsLoadingPodcasts(false)
     }
   }
   
   // 获取国家列表
   const fetchCountries = async () => {
+    setIsLoading(true)
     setIsLoadingCountries(true)
     setError(null)
     try {
@@ -199,6 +222,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error("获取国家列表时出错:", error)
       setError((error as Error).message)
     } finally {
+      setIsLoading(false)
       setIsLoadingCountries(false)
     }
   }
@@ -227,6 +251,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     
     // 错误处理
     error,
+    
+    // 通用加载状态
+    isLoading,
   }
   
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
