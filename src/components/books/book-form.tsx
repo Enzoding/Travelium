@@ -4,7 +4,7 @@ import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Book, Country } from "@/types"
+import { Book, Country, BookWithoutId } from "@/types"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -35,7 +35,7 @@ interface BookFormProps {
   book?: Book
   isOpen: boolean
   onClose: () => void
-  onSave: (book: Omit<Book, "id"> & { id?: string }) => void
+  onSave: (book: BookWithoutId & { id?: string }) => void
   availableCountries: Country[]
 }
 
@@ -66,7 +66,7 @@ export function BookForm({ book, isOpen, onClose, onSave, availableCountries }: 
       return
     }
 
-    const bookData = {
+    const bookData: BookWithoutId & { id?: string } = {
       id: book?.id,
       title: data.title,
       author: data.author,
