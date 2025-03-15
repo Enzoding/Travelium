@@ -15,30 +15,36 @@ export interface Database {
           created_at: string
           updated_at: string
           title: string
-          author: string
-          description: string
+          author: string | null
+          description: string | null
+          url: string | null
           cover_url: string | null
           user_id: string
+          book_status: number
         }
         Insert: {
           id?: string
           created_at?: string
           updated_at?: string
           title: string
-          author: string
-          description: string
+          author?: string | null
+          description?: string | null
+          url?: string | null
           cover_url?: string | null
           user_id: string
+          book_status?: number
         }
         Update: {
           id?: string
           created_at?: string
           updated_at?: string
           title?: string
-          author?: string
-          description?: string
+          author?: string | null
+          description?: string | null
+          url?: string | null
           cover_url?: string | null
           user_id?: string
+          book_status?: number
         }
         Relationships: [
           {
@@ -83,33 +89,36 @@ export interface Database {
           created_at: string
           updated_at: string
           title: string
-          author: string
-          description: string
+          description: string | null
           cover_url: string | null
-          audio_url: string
+          audio_url: string | null
+          url: string | null
           user_id: string
+          podcast_status: number
         }
         Insert: {
           id?: string
           created_at?: string
           updated_at?: string
           title: string
-          author: string
-          description: string
+          description?: string | null
           cover_url?: string | null
-          audio_url: string
+          audio_url?: string | null
+          url?: string | null
           user_id: string
+          podcast_status?: number
         }
         Update: {
           id?: string
           created_at?: string
           updated_at?: string
           title?: string
-          author?: string
-          description?: string
+          description?: string | null
           cover_url?: string | null
-          audio_url?: string
+          audio_url?: string | null
+          url?: string | null
           user_id?: string
+          podcast_status?: number
         }
         Relationships: [
           {

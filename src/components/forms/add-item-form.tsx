@@ -16,8 +16,9 @@ import { BookOpen, Headphones } from "lucide-react"
 
 const bookSchema = z.object({
   title: z.string().min(1, "标题不能为空"),
-  author: z.string().min(1, "作者不能为空"),
-  description: z.string().min(1, "描述不能为空"),
+  author: z.string().optional(),
+  description: z.string().optional(),
+  url: z.string().url("请输入有效的URL").optional(),
   coverUrl: z.string().url("请输入有效的URL").optional(),
   countries: z.array(z.object({
     code: z.string(),
@@ -27,10 +28,10 @@ const bookSchema = z.object({
 
 const podcastSchema = z.object({
   title: z.string().min(1, "标题不能为空"),
-  author: z.string().min(1, "作者不能为空"),
-  description: z.string().min(1, "描述不能为空"),
+  description: z.string().optional(),
+  url: z.string().url("请输入有效的URL").optional(),
   coverUrl: z.string().url("请输入有效的URL").optional(),
-  audioUrl: z.string().url("请输入有效的URL"),
+  audioUrl: z.string().url("请输入有效的URL").optional(),
   countries: z.array(z.object({
     code: z.string(),
     name: z.string()
@@ -62,6 +63,7 @@ function AddItemForm({
       title: "",
       author: "",
       description: "",
+      url: "",
       coverUrl: "",
       countries: []
     }
@@ -71,8 +73,8 @@ function AddItemForm({
     resolver: zodResolver(podcastSchema),
     defaultValues: {
       title: "",
-      author: "",
       description: "",
+      url: "",
       coverUrl: "",
       audioUrl: "",
       countries: []
@@ -141,7 +143,7 @@ function AddItemForm({
                   <FormItem>
                     <FormLabel>作者</FormLabel>
                     <FormControl>
-                      <Input placeholder="输入作者" {...field} />
+                      <Input placeholder="输入作者（可选）" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -155,8 +157,25 @@ function AddItemForm({
                   <FormItem>
                     <FormLabel>描述</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="输入描述" {...field} />
+                      <Textarea placeholder="输入描述（可选）" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={bookForm.control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>书籍链接</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入书籍链接URL（可选）" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      提供一个指向书籍的URL链接
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -239,12 +258,12 @@ function AddItemForm({
               
               <FormField
                 control={podcastForm.control}
-                name="author"
+                name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>主播/作者</FormLabel>
+                    <FormLabel>描述</FormLabel>
                     <FormControl>
-                      <Input placeholder="输入主播或作者" {...field} />
+                      <Textarea placeholder="输入描述（可选）" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -253,13 +272,16 @@ function AddItemForm({
               
               <FormField
                 control={podcastForm.control}
-                name="description"
+                name="url"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>描述</FormLabel>
+                    <FormLabel>播客链接</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="输入描述" {...field} />
+                      <Input placeholder="输入播客链接URL（可选）" {...field} />
                     </FormControl>
+                    <FormDescription>
+                      提供一个指向播客的URL链接
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -289,7 +311,7 @@ function AddItemForm({
                   <FormItem>
                     <FormLabel>音频URL</FormLabel>
                     <FormControl>
-                      <Input placeholder="输入音频文件URL" {...field} />
+                      <Input placeholder="输入音频文件URL（可选）" {...field} />
                     </FormControl>
                     <FormDescription>
                       提供一个指向播客音频文件的URL链接

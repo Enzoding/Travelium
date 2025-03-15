@@ -12,6 +12,7 @@ export class DataService {
         .from("books")
         .select("*")
         .eq("user_id", userId)
+        .eq("book_status", 0)
         .order("created_at", { ascending: false });
 
       if (booksError) throw booksError;
@@ -38,13 +39,15 @@ export class DataService {
         booksWithCountries.push({
           id: book.id,
           title: book.title,
-          author: book.author,
-          description: book.description,
+          author: book.author || undefined,
+          description: book.description || undefined,
+          url: book.url || undefined,
           coverUrl: book.cover_url || undefined,
           countries: countries.map((c) => ({ code: c.code, name: c.name })),
           createdAt: book.created_at,
           updatedAt: book.updated_at,
           userId: book.user_id,
+          status: book.book_status,
         });
       }
 
@@ -64,12 +67,14 @@ export class DataService {
       const { error: bookError } = await this.supabase.from("books").insert({
         id: bookId,
         title: book.title,
-        author: book.author,
-        description: book.description,
+        author: book.author || null,
+        description: book.description || null,
+        url: book.url || null,
         cover_url: book.coverUrl || null,
         user_id: userId,
         created_at: now,
         updated_at: now,
+        book_status: 0,
       });
 
       if (bookError) throw bookError;
@@ -91,11 +96,13 @@ export class DataService {
         title: book.title,
         author: book.author,
         description: book.description,
+        url: book.url,
         coverUrl: book.coverUrl,
         countries: book.countries,
         createdAt: now,
         updatedAt: now,
         userId,
+        status: 0,
       };
     } catch (error) {
       console.error("添加书籍时出错:", error);
@@ -112,8 +119,9 @@ export class DataService {
         .from("books")
         .update({
           title: book.title,
-          author: book.author,
-          description: book.description,
+          author: book.author || null,
+          description: book.description || null,
+          url: book.url || null,
           cover_url: book.coverUrl || null,
           updated_at: now,
         })
@@ -147,11 +155,13 @@ export class DataService {
         title: book.title,
         author: book.author,
         description: book.description,
+        url: book.url,
         coverUrl: book.coverUrl,
         countries: book.countries,
         createdAt: "", // 这些值会在服务器端设置
         updatedAt: now,
         userId,
+        status: 0,
       };
     } catch (error) {
       console.error("更新书籍时出错:", error);
@@ -161,18 +171,10 @@ export class DataService {
 
   async deleteBook(id: string, userId: string): Promise<void> {
     try {
-      // 删除书籍与国家的关联
-      const { error: countriesError } = await this.supabase
-        .from("book_countries")
-        .delete()
-        .eq("book_id", id);
-
-      if (countriesError) throw countriesError;
-
-      // 删除书籍
+      // 逻辑删除书籍
       const { error: bookError } = await this.supabase
         .from("books")
-        .delete()
+        .update({ book_status: 1 })
         .eq("id", id)
         .eq("user_id", userId);
 
@@ -190,6 +192,7 @@ export class DataService {
         .from("podcasts")
         .select("*")
         .eq("user_id", userId)
+        .eq("podcast_status", 0)
         .order("created_at", { ascending: false });
 
       if (podcastsError) throw podcastsError;
@@ -216,14 +219,15 @@ export class DataService {
         podcastsWithCountries.push({
           id: podcast.id,
           title: podcast.title,
-          author: podcast.author,
-          description: podcast.description,
+          description: podcast.description || undefined,
+          url: podcast.url || undefined,
           coverUrl: podcast.cover_url || undefined,
-          audioUrl: podcast.audio_url,
+          audioUrl: podcast.audio_url || undefined,
           countries: countries.map((c) => ({ code: c.code, name: c.name })),
           createdAt: podcast.created_at,
           updatedAt: podcast.updated_at,
           userId: podcast.user_id,
+          status: podcast.podcast_status,
         });
       }
 
@@ -243,13 +247,14 @@ export class DataService {
       const { error: podcastError } = await this.supabase.from("podcasts").insert({
         id: podcastId,
         title: podcast.title,
-        author: podcast.author,
-        description: podcast.description,
+        description: podcast.description || null,
+        url: podcast.url || null,
         cover_url: podcast.coverUrl || null,
-        audio_url: podcast.audioUrl,
+        audio_url: podcast.audioUrl || null,
         user_id: userId,
         created_at: now,
         updated_at: now,
+        podcast_status: 0,
       });
 
       if (podcastError) throw podcastError;
@@ -269,14 +274,15 @@ export class DataService {
       return {
         id: podcastId,
         title: podcast.title,
-        author: podcast.author,
         description: podcast.description,
+        url: podcast.url,
         coverUrl: podcast.coverUrl,
         audioUrl: podcast.audioUrl,
         countries: podcast.countries,
         createdAt: now,
         updatedAt: now,
         userId,
+        status: 0,
       };
     } catch (error) {
       console.error("添加播客时出错:", error);
@@ -293,10 +299,10 @@ export class DataService {
         .from("podcasts")
         .update({
           title: podcast.title,
-          author: podcast.author,
-          description: podcast.description,
+          description: podcast.description || null,
+          url: podcast.url || null,
           cover_url: podcast.coverUrl || null,
-          audio_url: podcast.audioUrl,
+          audio_url: podcast.audioUrl || null,
           updated_at: now,
         })
         .eq("id", id)
@@ -327,14 +333,15 @@ export class DataService {
       return {
         id,
         title: podcast.title,
-        author: podcast.author,
         description: podcast.description,
+        url: podcast.url,
         coverUrl: podcast.coverUrl,
         audioUrl: podcast.audioUrl,
         countries: podcast.countries,
         createdAt: "", // 这些值会在服务器端设置
         updatedAt: now,
         userId,
+        status: 0,
       };
     } catch (error) {
       console.error("更新播客时出错:", error);
@@ -344,18 +351,10 @@ export class DataService {
 
   async deletePodcast(id: string, userId: string): Promise<void> {
     try {
-      // 删除播客与国家的关联
-      const { error: countriesError } = await this.supabase
-        .from("podcast_countries")
-        .delete()
-        .eq("podcast_id", id);
-
-      if (countriesError) throw countriesError;
-
-      // 删除播客
+      // 逻辑删除播客
       const { error: podcastError } = await this.supabase
         .from("podcasts")
-        .delete()
+        .update({ podcast_status: 1 })
         .eq("id", id)
         .eq("user_id", userId);
 
