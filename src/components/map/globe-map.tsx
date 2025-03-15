@@ -99,63 +99,57 @@ function GlobeMap({
     if (!map.current || !mapLoaded) return;
 
     // 获取所有相关国家及其关联次数
-    const countryOccurrences: Record<string, number> = {};
+    const countryCounts: Record<string, number> = {};
     
     books.forEach(book => {
       book.countries.forEach(country => {
-        countryOccurrences[country.code] = (countryOccurrences[country.code] || 0) + 1;
+        countryCounts[country.code] = (countryCounts[country.code] || 0) + 1;
       });
     });
     
     podcasts.forEach(podcast => {
       podcast.countries.forEach(country => {
-        countryOccurrences[country.code] = (countryOccurrences[country.code] || 0) + 1;
+        countryCounts[country.code] = (countryCounts[country.code] || 0) + 1;
       });
     });
 
-    // 如果地图已经加载了国家边界数据，则添加填充图层
-    if (map.current.getSource('countries')) {
-      // 移除现有的高亮图层（如果存在）
-      if (map.current.getLayer('countries-highlighted')) {
-        map.current.removeLayer('countries-highlighted');
-      }
+    // 移除现有的高亮图层
+    if (map.current.getLayer('countries-highlighted')) {
+      map.current.removeLayer('countries-highlighted');
+    }
 
+    // 如果有相关国家，添加高亮图层
+    if (Object.keys(countryCounts).length > 0) {
+      const countryCodesList = Object.keys(countryCounts);
+      
       // 添加高亮图层
       map.current.addLayer({
         id: 'countries-highlighted',
         type: 'fill',
         source: 'countries',
         'source-layer': 'country_boundaries',
-        layout: {},
         paint: {
           'fill-color': [
             'case',
-            ['in', ['get', 'iso_3166_1'], ['literal', Object.keys(countryOccurrences)]],
-            [
-              'interpolate',
-              ['linear'],
-              ['get', ['to-string', ['get', 'iso_3166_1']], ['literal', countryOccurrences], 0],
-              1, 'rgba(255, 180, 0, 0.3)',
-              5, 'rgba(255, 180, 0, 0.5)',
-              10, 'rgba(255, 180, 0, 0.7)'
-            ],
-            'rgba(0, 0, 0, 0)'
+            ['in', ['get', 'iso_3166_1'], ['literal', countryCodesList]],
+            'rgba(65, 105, 225, 0.4)', // 高亮颜色
+            'rgba(0, 0, 0, 0)' // 透明
           ],
-          'fill-outline-color': 'rgba(255, 255, 255, 0.5)'
-        }
+          'fill-outline-color': 'rgba(65, 105, 225, 0.8)'
+        },
+        filter: ['in', ['get', 'iso_3166_1'], ['literal', countryCodesList]]
       });
     }
   };
 
-  // 获取国家中心坐标（示例实现，实际应用中需要完整的数据）
+  // 模拟国家代码到经纬度的映射
+  // 实际应用中应该使用真实的地理数据
   const getCountryCoordinates = (countryCode: string): [number, number] | null => {
-    // 这里应该有一个完整的国家代码到坐标的映射
-    // 以下是一些示例数据
     const coordinates: Record<string, [number, number]> = {
       'US': [-95.7129, 37.0902],
       'CN': [104.1954, 35.8617],
       'JP': [138.2529, 36.2048],
-      'GB': [-3.4360, 55.3781],
+      'GB': [-3.4359, 55.3781],
       'FR': [2.2137, 46.2276],
       'DE': [10.4515, 51.1657],
       'IT': [12.5674, 41.8719],
@@ -165,7 +159,13 @@ function GlobeMap({
       'CA': [-106.3468, 56.1304],
       'IN': [78.9629, 20.5937],
       'RU': [105.3188, 61.5240],
-      // 添加更多国家...
+      'ZA': [22.9375, -30.5595],
+      'MX': [-102.5528, 23.6345],
+      'AR': [-63.6167, -38.4161],
+      'TH': [100.9925, 15.8700],
+      'EG': [30.8025, 26.8206],
+      'KR': [127.7669, 35.9078],
+      'NZ': [174.8860, -40.9006],
     };
     
     return coordinates[countryCode] || null;
@@ -184,7 +184,7 @@ function GlobeMap({
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/satellite-v9', // 使用卫星地图样式
+      style: 'mapbox://styles/mapbox/light-v11', // 使用浅色地图样式
       center: [0, 20], // 初始中心点
       zoom: 1.5, // 初始缩放级别
       projection: 'globe', // 使用球形投影
@@ -195,11 +195,11 @@ function GlobeMap({
       
       // 添加大气层效果
       map.current.setFog({
-        color: 'rgb(186, 210, 235)', // 大气层颜色
-        'high-color': 'rgb(36, 92, 223)', // 高空大气层颜色
+        color: 'rgb(220, 230, 240)', // 浅色大气层颜色
+        'high-color': 'rgb(180, 200, 230)', // 高空大气层颜色
         'horizon-blend': 0.02, // 地平线混合
-        'space-color': 'rgb(11, 11, 25)', // 太空颜色
-        'star-intensity': 0.6, // 星星亮度
+        'space-color': 'rgb(200, 220, 240)', // 太空颜色
+        'star-intensity': 0.2, // 星星亮度
       });
 
       // 加载国家边界数据
@@ -216,17 +216,18 @@ function GlobeMap({
         'source-layer': 'country_boundaries',
         layout: {},
         paint: {
-          'line-color': 'rgba(255, 255, 255, 0.3)',
+          'line-color': 'rgba(100, 120, 160, 0.5)',
           'line-width': 1
         }
       });
 
       setMapLoaded(true);
+      addMarkers();
+      highlightCountries();
     });
 
     // 清理函数
     return () => {
-      clearMarkers();
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -243,10 +244,7 @@ function GlobeMap({
   }, [books, podcasts, mapLoaded, showUserItems]);
 
   return (
-    <div 
-      ref={mapContainer} 
-      className={`w-full h-full min-h-[500px] rounded-lg ${className || ''}`}
-    />
+    <div ref={mapContainer} className={className} />
   );
 }
 

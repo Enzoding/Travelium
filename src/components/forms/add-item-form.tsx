@@ -9,7 +9,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { BookOpen, Headphones } from "lucide-react"
@@ -97,252 +97,250 @@ function AddItemForm({
   }))
   
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>添加新内容</DialogTitle>
-          <DialogDescription>
-            添加您阅读过的书籍或听过的播客，并将它们与国家关联起来。
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>添加新内容</DialogTitle>
+        <DialogDescription>
+          添加您阅读过的书籍或听过的播客，并将它们与国家关联起来。
+        </DialogDescription>
+      </DialogHeader>
+      
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "book" | "podcast")}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="book" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            书籍
+          </TabsTrigger>
+          <TabsTrigger value="podcast" className="flex items-center gap-2">
+            <Headphones className="h-4 w-4" />
+            播客
+          </TabsTrigger>
+        </TabsList>
         
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "book" | "podcast")}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="book" className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              书籍
-            </TabsTrigger>
-            <TabsTrigger value="podcast" className="flex items-center gap-2">
-              <Headphones className="h-4 w-4" />
-              播客
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="book">
-            <Form {...bookForm}>
-              <form onSubmit={bookForm.handleSubmit(onBookSubmit)} className="space-y-4">
-                <FormField
-                  control={bookForm.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>书名</FormLabel>
-                      <FormControl>
-                        <Input placeholder="输入书名" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={bookForm.control}
-                  name="author"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>作者</FormLabel>
-                      <FormControl>
-                        <Input placeholder="输入作者" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={bookForm.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>描述</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="输入描述" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={bookForm.control}
-                  name="coverUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>封面URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="输入封面图片URL（可选）" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        提供一个指向书籍封面图片的URL链接
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={bookForm.control}
-                  name="countries"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>相关国家</FormLabel>
-                      <FormControl>
-                        <MultiSelect
-                          options={countryOptions}
-                          selected={field.value.map(country => ({
-                            label: country.name,
-                            value: country.code
-                          }))}
-                          onChange={(selected) => {
-                            field.onChange(
-                              selected.map(item => ({
-                                code: item.value,
-                                name: item.label
-                              }))
-                            )
-                          }}
-                          placeholder="选择相关国家"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        选择与这本书相关的国家
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <DialogFooter>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "添加中..." : "添加书籍"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </TabsContent>
-          
-          <TabsContent value="podcast">
-            <Form {...podcastForm}>
-              <form onSubmit={podcastForm.handleSubmit(onPodcastSubmit)} className="space-y-4">
-                <FormField
-                  control={podcastForm.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>播客名称</FormLabel>
-                      <FormControl>
-                        <Input placeholder="输入播客名称" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={podcastForm.control}
-                  name="author"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>作者/主持人</FormLabel>
-                      <FormControl>
-                        <Input placeholder="输入作者或主持人" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={podcastForm.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>描述</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="输入描述" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={podcastForm.control}
-                  name="coverUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>封面URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="输入封面图片URL（可选）" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        提供一个指向播客封面图片的URL链接
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={podcastForm.control}
-                  name="audioUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>音频URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="输入音频URL" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        提供一个指向播客音频文件的URL链接
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={podcastForm.control}
-                  name="countries"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>相关国家</FormLabel>
-                      <FormControl>
-                        <MultiSelect
-                          options={countryOptions}
-                          selected={field.value.map(country => ({
-                            label: country.name,
-                            value: country.code
-                          }))}
-                          onChange={(selected) => {
-                            field.onChange(
-                              selected.map(item => ({
-                                code: item.value,
-                                name: item.label
-                              }))
-                            )
-                          }}
-                          placeholder="选择相关国家"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        选择与这个播客相关的国家
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <DialogFooter>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "添加中..." : "添加播客"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+        <TabsContent value="book">
+          <Form {...bookForm}>
+            <form onSubmit={bookForm.handleSubmit(onBookSubmit)} className="space-y-4">
+              <FormField
+                control={bookForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>书名</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入书名" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={bookForm.control}
+                name="author"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>作者</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入作者" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={bookForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>描述</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="输入描述" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={bookForm.control}
+                name="coverUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>封面URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入封面图片URL（可选）" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      提供一个指向书籍封面图片的URL链接
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={bookForm.control}
+                name="countries"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>相关国家</FormLabel>
+                    <FormControl>
+                      <MultiSelect
+                        options={countryOptions}
+                        selected={field.value.map(country => ({
+                          label: country.name,
+                          value: country.code
+                        }))}
+                        onChange={(selected) => {
+                          field.onChange(
+                            selected.map(item => ({
+                              code: item.value,
+                              name: item.label
+                            }))
+                          )
+                        }}
+                        placeholder="选择相关国家"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      选择与这本书相关的国家
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? '添加中...' : '添加书籍'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </TabsContent>
+        
+        <TabsContent value="podcast">
+          <Form {...podcastForm}>
+            <form onSubmit={podcastForm.handleSubmit(onPodcastSubmit)} className="space-y-4">
+              <FormField
+                control={podcastForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>标题</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入播客标题" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={podcastForm.control}
+                name="author"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>主播/作者</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入主播或作者" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={podcastForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>描述</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="输入描述" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={podcastForm.control}
+                name="coverUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>封面URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入封面图片URL（可选）" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      提供一个指向播客封面图片的URL链接
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={podcastForm.control}
+                name="audioUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>音频URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入音频文件URL" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      提供一个指向播客音频文件的URL链接
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={podcastForm.control}
+                name="countries"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>相关国家</FormLabel>
+                    <FormControl>
+                      <MultiSelect
+                        options={countryOptions}
+                        selected={field.value.map(country => ({
+                          label: country.name,
+                          value: country.code
+                        }))}
+                        onChange={(selected) => {
+                          field.onChange(
+                            selected.map(item => ({
+                              code: item.value,
+                              name: item.label
+                            }))
+                          )
+                        }}
+                        placeholder="选择相关国家"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      选择与这个播客相关的国家
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? '添加中...' : '添加播客'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </TabsContent>
+      </Tabs>
+    </>
   )
 }
 
