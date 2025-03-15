@@ -6,26 +6,26 @@ import { Command as CommandPrimitive } from "cmdk"
 import { Badge } from "@/components/ui/badge"
 import { Command, CommandGroup, CommandItem } from "@/components/ui/command"
 
-interface MultiSelectProps {
-  options: { label: string; value: string }[]
-  selected: { label: string; value: string }[]
-  onChange: (selected: { label: string; value: string }[]) => void
+interface MultiSelectProps<T extends { label: string; value: string }> {
+  options: T[]
+  selected: T[]
+  onChange: (selected: T[]) => void
   placeholder?: string
   className?: string
 }
 
-export function MultiSelect({
+export function MultiSelect<T extends { label: string; value: string }>({
   options,
   selected,
   onChange,
   placeholder = "选择项目...",
   className,
-}: MultiSelectProps) {
+}: MultiSelectProps<T>) {
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
 
-  const handleUnselect = (item: { label: string; value: string }) => {
+  const handleUnselect = (item: T) => {
     onChange(selected.filter((s) => s.value !== item.value))
   }
 

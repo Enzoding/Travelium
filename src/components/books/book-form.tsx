@@ -73,6 +73,7 @@ export function BookForm({ book, isOpen, onClose, onSave, availableCountries }: 
       description: data.description,
       coverUrl: data.coverUrl || undefined,
       countries: selectedCountries,
+      cities: [], // 添加空的城市数组作为默认值
     }
 
     onSave(bookData)

@@ -11,6 +11,9 @@ interface GlobeMapProps {
   podcasts?: Podcast[];
   showUserItems?: boolean;
   onMarkerClick?: (type: 'book' | 'podcast', item: Book | Podcast) => void;
+  countryCodes?: string[];
+  onCountryClick?: (countryCode: string) => void;
+  onCountryHover?: (countryCode: string) => void;
 }
 
 function GlobeMap({ 
@@ -18,12 +21,16 @@ function GlobeMap({
   books = [], 
   podcasts = [], 
   showUserItems = false,
-  onMarkerClick 
+  onMarkerClick,
+  countryCodes = [],
+  onCountryClick,
+  onCountryHover
 }: GlobeMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const hoveredCountryIdRef = useRef<string | null>(null);
 
   // 清除所有标记
   const clearMarkers = () => {
@@ -98,30 +105,21 @@ function GlobeMap({
   const highlightCountries = () => {
     if (!map.current || !mapLoaded) return;
 
-    // 获取所有相关国家及其关联次数
-    const countryCounts: Record<string, number> = {};
+    // 获取所有相关国家
+    const countryCodesList = countryCodes.length > 0 
+      ? countryCodes 
+      : [...new Set([
+          ...books.flatMap(book => book.countries.map(country => country.code)),
+          ...podcasts.flatMap(podcast => podcast.countries.map(country => country.code))
+        ])];
     
-    books.forEach(book => {
-      book.countries.forEach(country => {
-        countryCounts[country.code] = (countryCounts[country.code] || 0) + 1;
-      });
-    });
-    
-    podcasts.forEach(podcast => {
-      podcast.countries.forEach(country => {
-        countryCounts[country.code] = (countryCounts[country.code] || 0) + 1;
-      });
-    });
-
     // 移除现有的高亮图层
     if (map.current.getLayer('countries-highlighted')) {
       map.current.removeLayer('countries-highlighted');
     }
 
     // 如果有相关国家，添加高亮图层
-    if (Object.keys(countryCounts).length > 0) {
-      const countryCodesList = Object.keys(countryCounts);
-      
+    if (countryCodesList.length > 0) {
       // 添加高亮图层
       map.current.addLayer({
         id: 'countries-highlighted',
@@ -169,6 +167,61 @@ function GlobeMap({
     };
     
     return coordinates[countryCode] || null;
+  };
+
+  // 设置国家交互事件
+  const setupCountryInteractions = () => {
+    if (!map.current || !mapLoaded) return;
+
+    // 添加国家点击事件
+    map.current.on('click', 'countries-highlighted', (e) => {
+      if (!e.features || e.features.length === 0) return;
+      
+      const countryCode = e.features[0].properties?.iso_3166_1;
+      if (countryCode && onCountryClick) {
+        onCountryClick(countryCode);
+      }
+    });
+
+    // 添加国家悬停事件
+    map.current.on('mousemove', 'countries-highlighted', (e) => {
+      if (!e.features || e.features.length === 0) return;
+      
+      if (e.features.length > 0) {
+        if (hoveredCountryIdRef.current) {
+          map.current?.setFeatureState(
+            { source: 'countries', sourceLayer: 'country_boundaries', id: hoveredCountryIdRef.current },
+            { hover: false }
+          );
+        }
+        
+        const countryCode = e.features[0].properties?.iso_3166_1;
+        const id = e.features[0].id;
+        
+        if (id) {
+          hoveredCountryIdRef.current = id as string;
+          map.current?.setFeatureState(
+            { source: 'countries', sourceLayer: 'country_boundaries', id },
+            { hover: true }
+          );
+        }
+        
+        if (countryCode && onCountryHover) {
+          onCountryHover(countryCode);
+        }
+      }
+    });
+
+    // 鼠标离开事件
+    map.current.on('mouseleave', 'countries-highlighted', () => {
+      if (hoveredCountryIdRef.current) {
+        map.current?.setFeatureState(
+          { source: 'countries', sourceLayer: 'country_boundaries', id: hoveredCountryIdRef.current },
+          { hover: false }
+        );
+      }
+      hoveredCountryIdRef.current = null;
+    });
   };
 
   useEffect(() => {
@@ -224,6 +277,7 @@ function GlobeMap({
       setMapLoaded(true);
       addMarkers();
       highlightCountries();
+      setupCountryInteractions();
     });
 
     // 清理函数
@@ -235,16 +289,16 @@ function GlobeMap({
     };
   }, []);
 
-  // 当书籍或播客数据变化时，更新标记和高亮
+  // 当书籍、播客或国家代码数据变化时，更新标记和高亮
   useEffect(() => {
     if (mapLoaded) {
       addMarkers();
       highlightCountries();
     }
-  }, [books, podcasts, mapLoaded, showUserItems]);
+  }, [books, podcasts, countryCodes, mapLoaded, showUserItems]);
 
   return (
-    <div ref={mapContainer} className={className} />
+    <div ref={mapContainer} className={className || "w-full h-full"} />
   );
 }
 

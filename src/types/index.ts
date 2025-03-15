@@ -5,6 +5,13 @@ export type Country = {
   name: string;
 };
 
+export type City = {
+  id: string;
+  name: string;
+  country_code: string;
+  country_name: string;
+};
+
 export type Book = {
   id: string;
   title: string;
@@ -13,6 +20,7 @@ export type Book = {
   url?: string;
   coverUrl?: string;
   countries: Country[];
+  cities: City[];
   createdAt: string;
   updatedAt: string;
   userId: string;
@@ -27,6 +35,7 @@ export type Podcast = {
   coverUrl?: string;
   audioUrl?: string;
   countries: Country[];
+  cities: City[];
   createdAt: string;
   updatedAt: string;
   userId: string;
@@ -43,6 +52,7 @@ export type BookWithoutId = {
   url?: string;
   coverUrl?: string;
   countries: Country[];
+  cities: City[];
 };
 
 export type PodcastWithoutId = {
@@ -52,4 +62,5 @@ export type PodcastWithoutId = {
   coverUrl?: string;
   audioUrl?: string;
   countries: Country[];
+  cities: City[];
 };

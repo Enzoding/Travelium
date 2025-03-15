@@ -83,6 +83,40 @@ export interface Database {
           }
         ]
       }
+      book_cities: {
+        Row: {
+          id: string
+          book_id: string
+          city_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          book_id: string
+          city_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          book_id?: string
+          city_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_cities_book_id_fkey"
+            columns: ["book_id"]
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_cities_city_id_fkey"
+            columns: ["city_id"]
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       podcasts: {
         Row: {
           id: string
@@ -154,6 +188,68 @@ export interface Database {
             columns: ["podcast_id"]
             referencedRelation: "podcasts"
             referencedColumns: ["id"]
+          }
+        ]
+      }
+      podcast_cities: {
+        Row: {
+          id: string
+          podcast_id: string
+          city_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          podcast_id: string
+          city_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          podcast_id?: string
+          city_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "podcast_cities_podcast_id_fkey"
+            columns: ["podcast_id"]
+            referencedRelation: "podcasts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podcast_cities_city_id_fkey"
+            columns: ["city_id"]
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      cities: {
+        Row: {
+          id: string
+          name: string
+          country_code: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          country_code: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          country_code?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cities_country_code_fkey"
+            columns: ["country_code"]
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
           }
         ]
       }

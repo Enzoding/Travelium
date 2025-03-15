@@ -1,5 +1,5 @@
 import { createBrowserSupabaseClient } from "./config";
-import { Book, BookWithoutId, Country, Podcast, PodcastWithoutId } from "@/types";
+import { Book, BookWithoutId, Country, Podcast, PodcastWithoutId, City } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
 export class DataService {
@@ -17,33 +17,56 @@ export class DataService {
 
       if (booksError) throw booksError;
 
-      const booksWithCountries: Book[] = [];
+      const booksWithLocations: Book[] = [];
 
       for (const book of books) {
-        const { data: bookCountries, error: countriesError } = await this.supabase
-          .from("book_countries")
-          .select("country_code")
+        // 获取书籍关联的城市
+        const { data: bookCities, error: citiesError } = await this.supabase
+          .from("book_cities")
+          .select("city_id")
           .eq("book_id", book.id);
 
-        if (countriesError) throw countriesError;
+        if (citiesError) throw citiesError;
 
-        const countryCodes = bookCountries.map((bc) => bc.country_code);
+        const cityIds = bookCities.map((bc) => bc.city_id);
 
-        const { data: countries, error: countryError } = await this.supabase
-          .from("countries")
-          .select("*")
-          .in("code", countryCodes);
+        // 获取城市详情
+        const { data: cities, error: cityError } = await this.supabase
+          .from("cities")
+          .select("*, countries!inner(*)")
+          .in("id", cityIds);
 
-        if (countryError) throw countryError;
+        if (cityError) throw cityError;
 
-        booksWithCountries.push({
+        // 从城市数据中提取国家信息
+        const countries = cities.reduce((acc: Country[], city) => {
+          const country = {
+            code: city.countries.code,
+            name: city.countries.name
+          };
+          
+          // 确保不重复添加相同的国家
+          if (!acc.some(c => c.code === country.code)) {
+            acc.push(country);
+          }
+          
+          return acc;
+        }, []);
+
+        booksWithLocations.push({
           id: book.id,
           title: book.title,
           author: book.author || undefined,
           description: book.description || undefined,
           url: book.url || undefined,
           coverUrl: book.cover_url || undefined,
-          countries: countries.map((c) => ({ code: c.code, name: c.name })),
+          countries,
+          cities: cities.map((c) => ({
+            id: c.id,
+            name: c.name,
+            country_code: c.countries.code,
+            country_name: c.countries.name
+          })),
           createdAt: book.created_at,
           updatedAt: book.updated_at,
           userId: book.user_id,
@@ -51,7 +74,7 @@ export class DataService {
         });
       }
 
-      return booksWithCountries;
+      return booksWithLocations;
     } catch (error) {
       console.error("获取书籍列表时出错:", error);
       throw error;
@@ -79,17 +102,19 @@ export class DataService {
 
       if (bookError) throw bookError;
 
-      // 添加书籍与国家的关联
-      const bookCountries = book.countries.map((country) => ({
-        book_id: bookId,
-        country_code: country.code,
-      }));
+      // 添加书籍与城市的关联
+      if (book.cities && book.cities.length > 0) {
+        const bookCities = book.cities.map((city) => ({
+          book_id: bookId,
+          city_id: city.id,
+        }));
 
-      const { error: countriesError } = await this.supabase
-        .from("book_countries")
-        .insert(bookCountries);
+        const { error: citiesError } = await this.supabase
+          .from("book_cities")
+          .insert(bookCities);
 
-      if (countriesError) throw countriesError;
+        if (citiesError) throw citiesError;
+      }
 
       return {
         id: bookId,
@@ -98,7 +123,8 @@ export class DataService {
         description: book.description,
         url: book.url,
         coverUrl: book.coverUrl,
-        countries: book.countries,
+        countries: book.countries || [],
+        cities: book.cities || [],
         createdAt: now,
         updatedAt: now,
         userId,
@@ -130,25 +156,27 @@ export class DataService {
 
       if (bookError) throw bookError;
 
-      // 删除旧的国家关联
+      // 删除旧的城市关联
       const { error: deleteError } = await this.supabase
-        .from("book_countries")
+        .from("book_cities")
         .delete()
         .eq("book_id", id);
 
       if (deleteError) throw deleteError;
 
-      // 添加新的国家关联
-      const bookCountries = book.countries.map((country) => ({
-        book_id: id,
-        country_code: country.code,
-      }));
+      // 添加新的城市关联
+      if (book.cities && book.cities.length > 0) {
+        const bookCities = book.cities.map((city) => ({
+          book_id: id,
+          city_id: city.id,
+        }));
 
-      const { error: countriesError } = await this.supabase
-        .from("book_countries")
-        .insert(bookCountries);
+        const { error: citiesError } = await this.supabase
+          .from("book_cities")
+          .insert(bookCities);
 
-      if (countriesError) throw countriesError;
+        if (citiesError) throw citiesError;
+      }
 
       return {
         id,
@@ -157,7 +185,8 @@ export class DataService {
         description: book.description,
         url: book.url,
         coverUrl: book.coverUrl,
-        countries: book.countries,
+        countries: book.countries || [],
+        cities: book.cities || [],
         createdAt: "", // 这些值会在服务器端设置
         updatedAt: now,
         userId,
@@ -197,33 +226,56 @@ export class DataService {
 
       if (podcastsError) throw podcastsError;
 
-      const podcastsWithCountries: Podcast[] = [];
+      const podcastsWithLocations: Podcast[] = [];
 
       for (const podcast of podcasts) {
-        const { data: podcastCountries, error: countriesError } = await this.supabase
-          .from("podcast_countries")
-          .select("country_code")
+        // 获取播客关联的城市
+        const { data: podcastCities, error: citiesError } = await this.supabase
+          .from("podcast_cities")
+          .select("city_id")
           .eq("podcast_id", podcast.id);
 
-        if (countriesError) throw countriesError;
+        if (citiesError) throw citiesError;
 
-        const countryCodes = podcastCountries.map((pc) => pc.country_code);
+        const cityIds = podcastCities.map((pc) => pc.city_id);
 
-        const { data: countries, error: countryError } = await this.supabase
-          .from("countries")
-          .select("*")
-          .in("code", countryCodes);
+        // 获取城市详情
+        const { data: cities, error: cityError } = await this.supabase
+          .from("cities")
+          .select("*, countries!inner(*)")
+          .in("id", cityIds);
 
-        if (countryError) throw countryError;
+        if (cityError) throw cityError;
 
-        podcastsWithCountries.push({
+        // 从城市数据中提取国家信息
+        const countries = cities.reduce((acc: Country[], city) => {
+          const country = {
+            code: city.countries.code,
+            name: city.countries.name
+          };
+          
+          // 确保不重复添加相同的国家
+          if (!acc.some(c => c.code === country.code)) {
+            acc.push(country);
+          }
+          
+          return acc;
+        }, []);
+
+        podcastsWithLocations.push({
           id: podcast.id,
           title: podcast.title,
           description: podcast.description || undefined,
           url: podcast.url || undefined,
           coverUrl: podcast.cover_url || undefined,
           audioUrl: podcast.audio_url || undefined,
-          countries: countries.map((c) => ({ code: c.code, name: c.name })),
+          countries,
+          cities: cities.map((c) => ({
+            id: c.id,
+            name: c.name,
+            country_code: c.countries.code,
+            country_name: c.countries.name
+          })),
           createdAt: podcast.created_at,
           updatedAt: podcast.updated_at,
           userId: podcast.user_id,
@@ -231,7 +283,7 @@ export class DataService {
         });
       }
 
-      return podcastsWithCountries;
+      return podcastsWithLocations;
     } catch (error) {
       console.error("获取播客列表时出错:", error);
       throw error;
@@ -259,17 +311,19 @@ export class DataService {
 
       if (podcastError) throw podcastError;
 
-      // 添加播客与国家的关联
-      const podcastCountries = podcast.countries.map((country) => ({
-        podcast_id: podcastId,
-        country_code: country.code,
-      }));
+      // 添加播客与城市的关联
+      if (podcast.cities && podcast.cities.length > 0) {
+        const podcastCities = podcast.cities.map((city) => ({
+          podcast_id: podcastId,
+          city_id: city.id,
+        }));
 
-      const { error: countriesError } = await this.supabase
-        .from("podcast_countries")
-        .insert(podcastCountries);
+        const { error: citiesError } = await this.supabase
+          .from("podcast_cities")
+          .insert(podcastCities);
 
-      if (countriesError) throw countriesError;
+        if (citiesError) throw citiesError;
+      }
 
       return {
         id: podcastId,
@@ -278,7 +332,8 @@ export class DataService {
         url: podcast.url,
         coverUrl: podcast.coverUrl,
         audioUrl: podcast.audioUrl,
-        countries: podcast.countries,
+        countries: podcast.countries || [],
+        cities: podcast.cities || [],
         createdAt: now,
         updatedAt: now,
         userId,
@@ -310,25 +365,27 @@ export class DataService {
 
       if (podcastError) throw podcastError;
 
-      // 删除旧的国家关联
+      // 删除旧的城市关联
       const { error: deleteError } = await this.supabase
-        .from("podcast_countries")
+        .from("podcast_cities")
         .delete()
         .eq("podcast_id", id);
 
       if (deleteError) throw deleteError;
 
-      // 添加新的国家关联
-      const podcastCountries = podcast.countries.map((country) => ({
-        podcast_id: id,
-        country_code: country.code,
-      }));
+      // 添加新的城市关联
+      if (podcast.cities && podcast.cities.length > 0) {
+        const podcastCities = podcast.cities.map((city) => ({
+          podcast_id: id,
+          city_id: city.id,
+        }));
 
-      const { error: countriesError } = await this.supabase
-        .from("podcast_countries")
-        .insert(podcastCountries);
+        const { error: citiesError } = await this.supabase
+          .from("podcast_cities")
+          .insert(podcastCities);
 
-      if (countriesError) throw countriesError;
+        if (citiesError) throw citiesError;
+      }
 
       return {
         id,
@@ -337,7 +394,8 @@ export class DataService {
         url: podcast.url,
         coverUrl: podcast.coverUrl,
         audioUrl: podcast.audioUrl,
-        countries: podcast.countries,
+        countries: podcast.countries || [],
+        cities: podcast.cities || [],
         createdAt: "", // 这些值会在服务器端设置
         updatedAt: now,
         userId,
@@ -385,6 +443,28 @@ export class DataService {
     }
   }
 
+  // 城市相关方法
+  async getCities(): Promise<City[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from("cities")
+        .select("*, countries!inner(*)")
+        .order("name");
+
+      if (error) throw error;
+
+      return data.map((city) => ({
+        id: city.id,
+        name: city.name,
+        country_code: city.countries.code,
+        country_name: city.countries.name
+      }));
+    } catch (error) {
+      console.error("获取城市列表时出错:", error);
+      throw error;
+    }
+  }
+
   // 用户资料相关方法
   async getProfile(userId: string) {
     try {
@@ -408,7 +488,9 @@ export class DataService {
       const { error } = await this.supabase
         .from("profiles")
         .update({
-          ...profile,
+          username: profile.username,
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
