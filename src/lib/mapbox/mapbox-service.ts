@@ -224,6 +224,70 @@ export class MapboxService {
       throw error
     }
   }
+
+  /**
+   * 根据国家代码和查询词搜索城市
+   * @param countryCode 国家代码
+   * @param query 搜索关键词
+   * @param limit 返回结果数量限制
+   * @returns 城市列表
+   */
+  async getCitiesByCountryAndQuery(countryCode: string, query: string, limit: number = 10): Promise<City[]> {
+    try {
+      if (!this.accessToken) {
+        console.error("Mapbox Token 未配置")
+        throw new Error("Mapbox Token 未配置")
+      }
+
+      // 使用 Mapbox 的 Geocoding API 获取符合查询条件的城市，并限制在指定国家内
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${this.accessToken}&types=place&country=${countryCode.toLowerCase()}&limit=${limit}`
+      
+      console.log("根据国家和查询词搜索城市 API 请求 URL:", url.replace(this.accessToken, "TOKEN_HIDDEN"))
+
+      const response = await fetch(url)
+      console.log("根据国家和查询词搜索城市 API 响应状态:", response.status, response.statusText)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("根据国家和查询词搜索城市 API 错误响应:", errorText)
+        throw new Error(`Mapbox API 请求失败: ${response.statusText}`)
+      }
+
+      const data: MapboxResponse = await response.json()
+      
+      // 解析城市数据
+      const cities: City[] = []
+      
+      data.features.forEach(feature => {
+        if (feature.place_type.includes("place")) {
+          // 从上下文中找到国家信息
+          const countryContext = feature.context?.find(ctx => 
+            ctx.id.startsWith("country.")
+          )
+          
+          if (countryContext) {
+            const countryCode = countryContext.short_code?.toUpperCase()
+            const countryName = countryContext.text
+            
+            if (countryCode && countryName) {
+              cities.push({
+                id: feature.id,
+                name: feature.text,
+                country_code: countryCode,
+                country_name: countryName
+              })
+            }
+          }
+        }
+      })
+
+      console.log(`根据国家 ${countryCode} 和查询词 "${query}" 搜索到 ${cities.length} 个城市`)
+      return cities
+    } catch (error) {
+      console.error(`根据国家 ${countryCode} 和查询词 "${query}" 搜索城市时出错:`, error)
+      throw error
+    }
+  }
 }
 
 // 创建单例实例

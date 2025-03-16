@@ -83,11 +83,25 @@ export class DataService {
 
   async addBook(book: BookWithoutId, userId: string): Promise<Book> {
     try {
+      console.log("开始添加书籍:", book.title);
       const bookId = uuidv4();
       const now = new Date().toISOString();
 
       // 添加书籍
-      const { error: bookError } = await this.supabase.from("books").insert({
+      console.log("添加书籍到 books 表:", { title: book.title, userId });
+      
+      // 检查 books 表是否有 book_status 字段
+      const { data: bookColumns, error: columnsError } = await this.supabase
+        .from('books')
+        .select('*')
+        .limit(1);
+        
+      if (columnsError) {
+        console.error("获取书籍表结构时出错:", columnsError);
+      }
+      
+      // 准备插入数据
+      const bookData: any = {
         id: bookId,
         title: book.title,
         author: book.author || null,
@@ -97,23 +111,131 @@ export class DataService {
         user_id: userId,
         created_at: now,
         updated_at: now,
-        book_status: 0,
-      });
+      };
+      
+      // 如果表中存在 book_status 字段，则添加该字段
+      const hasStatusField = !columnsError && bookColumns && 
+        (bookColumns.length === 0 || 'book_status' in bookColumns[0]);
+        
+      if (hasStatusField) {
+        console.log("书籍表包含 book_status 字段，添加默认值 0");
+        bookData.book_status = 0;
+      } else {
+        console.log("书籍表不包含 book_status 字段，跳过该字段");
+      }
+      
+      const { error: bookError, data: bookInserted } = await this.supabase
+        .from("books")
+        .insert(bookData)
+        .select();
 
-      if (bookError) throw bookError;
+      if (bookError) {
+        console.error("添加书籍到 books 表时出错:", bookError);
+        throw bookError;
+      }
+      
+      console.log("书籍添加成功:", bookInserted);
 
       // 添加书籍与城市的关联
       if (book.cities && book.cities.length > 0) {
+        console.log("开始处理城市关联:", book.cities);
+        
+        // 确保所有城市都已存在于数据库中
+        for (const city of book.cities) {
+          console.log("处理城市:", city);
+          
+          try {
+            // 检查国家是否存在
+            console.log("检查国家是否存在:", city.country_code);
+            const { data: existingCountry, error: countryCheckError } = await this.supabase
+              .from("countries")
+              .select("code")
+              .eq("code", city.country_code)
+              .single();
+              
+            if (countryCheckError && countryCheckError.code !== "PGRST116") {
+              console.error("检查国家时出错:", countryCheckError);
+              throw countryCheckError;
+            }
+            
+            console.log("国家检查结果:", existingCountry);
+              
+            // 如果国家不存在，先创建国家
+            if (!existingCountry) {
+              console.log("创建国家:", { code: city.country_code, name: city.country_name });
+              const { error: countryError, data: countryData } = await this.supabase
+                .from("countries")
+                .insert({
+                  code: city.country_code,
+                  name: city.country_name,
+                }).select();
+                
+              if (countryError) {
+                console.error(`创建国家 ${city.country_name} 时出错:`, countryError);
+                throw countryError;
+              }
+              
+              console.log("国家创建成功:", countryData);
+            }
+            
+            // 检查城市是否存在
+            console.log("检查城市是否存在:", city.id);
+            const { data: existingCity, error: cityCheckError } = await this.supabase
+              .from("cities")
+              .select("id")
+              .eq("id", city.id)
+              .single();
+              
+            if (cityCheckError && cityCheckError.code !== "PGRST116") {
+              console.error("检查城市时出错:", cityCheckError);
+              throw cityCheckError;
+            }
+            
+            console.log("城市检查结果:", existingCity);
+              
+            // 如果城市不存在，先创建城市
+            if (!existingCity) {
+              console.log("创建城市:", { id: city.id, name: city.name, country_code: city.country_code });
+              const { error: cityError, data: cityData } = await this.supabase
+                .from("cities")
+                .insert({
+                  id: city.id,
+                  name: city.name,
+                  country_code: city.country_code,
+                }).select();
+                
+              if (cityError) {
+                console.error(`创建城市 ${city.name} 时出错:`, cityError);
+                throw cityError;
+              }
+              
+              console.log("城市创建成功:", cityData);
+            }
+          } catch (error) {
+            console.error("处理城市数据时出错:", error);
+            throw error;
+          }
+        }
+
+        // 创建书籍与城市的关联
+        console.log("创建书籍与城市的关联");
         const bookCities = book.cities.map((city) => ({
           book_id: bookId,
           city_id: city.id,
         }));
 
-        const { error: citiesError } = await this.supabase
+        console.log("插入 book_cities 数据:", bookCities);
+        const { error: citiesError, data: citiesData } = await this.supabase
           .from("book_cities")
-          .insert(bookCities);
+          .insert(bookCities)
+          .select();
 
-        if (citiesError) throw citiesError;
+        if (citiesError) {
+          console.error("添加书籍与城市关联时出错:", citiesError);
+          throw citiesError;
+        }
+        
+        console.log("书籍与城市关联创建成功:", citiesData);
       }
 
       return {
@@ -292,11 +414,25 @@ export class DataService {
 
   async addPodcast(podcast: PodcastWithoutId, userId: string): Promise<Podcast> {
     try {
+      console.log("开始添加播客:", podcast.title);
       const podcastId = uuidv4();
       const now = new Date().toISOString();
 
       // 添加播客
-      const { error: podcastError } = await this.supabase.from("podcasts").insert({
+      console.log("添加播客到 podcasts 表:", { title: podcast.title, userId });
+      
+      // 检查 podcasts 表是否有 podcast_status 字段
+      const { data: podcastColumns, error: columnsError } = await this.supabase
+        .from('podcasts')
+        .select('*')
+        .limit(1);
+        
+      if (columnsError) {
+        console.error("获取播客表结构时出错:", columnsError);
+      }
+      
+      // 准备插入数据
+      const podcastData: any = {
         id: podcastId,
         title: podcast.title,
         description: podcast.description || null,
@@ -306,23 +442,198 @@ export class DataService {
         user_id: userId,
         created_at: now,
         updated_at: now,
-        podcast_status: 0,
-      });
+      };
+      
+      // 如果表中存在 podcast_status 字段，则添加该字段
+      const hasStatusField = !columnsError && podcastColumns && 
+        (podcastColumns.length === 0 || 'podcast_status' in podcastColumns[0]);
+        
+      if (hasStatusField) {
+        console.log("播客表包含 podcast_status 字段，添加默认值 0");
+        podcastData.podcast_status = 0;
+      } else {
+        console.log("播客表不包含 podcast_status 字段，跳过该字段");
+      }
+      
+      const { error: podcastError, data: insertedPodcast } = await this.supabase
+        .from("podcasts")
+        .insert(podcastData)
+        .select();
 
-      if (podcastError) throw podcastError;
+      if (podcastError) {
+        console.error("添加播客到 podcasts 表时出错:", podcastError);
+        throw podcastError;
+      }
+      
+      console.log("播客添加成功:", insertedPodcast);
 
       // 添加播客与城市的关联
       if (podcast.cities && podcast.cities.length > 0) {
-        const podcastCities = podcast.cities.map((city) => ({
-          podcast_id: podcastId,
-          city_id: city.id,
-        }));
+        console.log("开始处理城市关联:", podcast.cities);
+        
+        // 创建一个数组来存储成功关联的城市
+        const successfulCities = [];
+        
+        // 确保所有城市都已存在于数据库中
+        for (const city of podcast.cities) {
+          console.log("处理城市:", city);
+          
+          try {
+            // 首先检查城市是否已存在
+            console.log("检查城市是否存在:", city.id);
+            const { data: existingCity, error: cityCheckError } = await this.supabase
+              .from("cities")
+              .select("id, country_code")
+              .eq("id", city.id)
+              .maybeSingle();
+              
+            if (cityCheckError && cityCheckError.code !== "PGRST116") {
+              console.error("检查城市时出错:", cityCheckError);
+              continue; // 跳过这个城市，继续处理其他城市
+            }
+            
+            console.log("城市检查结果:", existingCity);
+            
+            // 如果城市已存在，添加到成功列表
+            if (existingCity) {
+              successfulCities.push(city);
+              continue;
+            }
+            
+            // 检查国家是否存在
+            console.log("检查国家是否存在:", city.country_code);
+            const { data: existingCountry, error: countryCheckError } = await this.supabase
+              .from("countries")
+              .select("code")
+              .eq("code", city.country_code)
+              .maybeSingle();
+              
+            if (countryCheckError && countryCheckError.code !== "PGRST116") {
+              console.error("检查国家时出错:", countryCheckError);
+              continue; // 跳过这个城市，继续处理其他城市
+            }
+            
+            console.log("国家检查结果:", existingCountry);
+              
+            // 如果国家不存在，尝试创建国家
+            let countryExists = !!existingCountry;
+            
+            if (!countryExists) {
+              try {
+                console.log("创建国家:", { code: city.country_code, name: city.country_name });
+                const { error: countryError, data: countryData } = await this.supabase
+                  .from("countries")
+                  .upsert({
+                    code: city.country_code,
+                    name: city.country_name,
+                  }, { onConflict: 'code' })
+                  .select();
+                  
+                if (countryError) {
+                  console.error(`创建国家 ${city.country_name} 时出错:`, countryError);
+                  console.log("尝试继续执行，假设国家已存在");
+                  // 尝试再次检查国家是否存在
+                  const { data: recheckedCountry } = await this.supabase
+                    .from("countries")
+                    .select("code")
+                    .eq("code", city.country_code)
+                    .maybeSingle();
+                    
+                  countryExists = !!recheckedCountry;
+                } else {
+                  console.log("国家创建成功:", countryData);
+                  countryExists = true;
+                }
+              } catch (countryCreateError) {
+                console.error(`创建国家 ${city.country_name} 时出现异常:`, countryCreateError);
+                console.log("尝试继续执行，假设国家已存在");
+                // 尝试再次检查国家是否存在
+                const { data: recheckedCountry } = await this.supabase
+                  .from("countries")
+                  .select("code")
+                  .eq("code", city.country_code)
+                  .maybeSingle();
+                  
+                countryExists = !!recheckedCountry;
+              }
+            }
+            
+            // 如果国家存在或已创建，尝试创建城市
+            if (countryExists) {
+              try {
+                console.log("创建城市:", { id: city.id, name: city.name, country_code: city.country_code });
+                const { error: cityError, data: cityData } = await this.supabase
+                  .from("cities")
+                  .upsert({
+                    id: city.id,
+                    name: city.name,
+                    country_code: city.country_code,
+                  }, { onConflict: 'id' })
+                  .select();
+                  
+                if (cityError) {
+                  console.error(`创建城市 ${city.name} 时出错:`, cityError);
+                  console.log("尝试继续执行，假设城市已存在");
+                  
+                  // 尝试再次检查城市是否存在
+                  const { data: recheckedCity } = await this.supabase
+                    .from("cities")
+                    .select("id")
+                    .eq("id", city.id)
+                    .maybeSingle();
+                    
+                  if (recheckedCity) {
+                    successfulCities.push(city);
+                  }
+                } else {
+                  console.log("城市创建成功:", cityData);
+                  successfulCities.push(city);
+                }
+              } catch (cityCreateError) {
+                console.error(`创建城市 ${city.name} 时出现异常:`, cityCreateError);
+                console.log("尝试继续执行，假设城市已存在");
+                
+                // 尝试再次检查城市是否存在
+                const { data: recheckedCity } = await this.supabase
+                  .from("cities")
+                  .select("id")
+                  .eq("id", city.id)
+                  .maybeSingle();
+                  
+                if (recheckedCity) {
+                  successfulCities.push(city);
+                }
+              }
+            }
+          } catch (error) {
+            console.error("处理城市数据时出错:", error);
+            // 继续处理其他城市，不中断整个流程
+          }
+        }
 
-        const { error: citiesError } = await this.supabase
-          .from("podcast_cities")
-          .insert(podcastCities);
+        // 只为成功创建或已存在的城市创建关联
+        if (successfulCities.length > 0) {
+          console.log("创建播客与城市的关联，成功的城市数量:", successfulCities.length);
+          const podcastCities = successfulCities.map((city) => ({
+            podcast_id: podcastId,
+            city_id: city.id,
+          }));
 
-        if (citiesError) throw citiesError;
+          console.log("插入 podcast_cities 数据:", podcastCities);
+          const { error: citiesError, data: citiesData } = await this.supabase
+            .from("podcast_cities")
+            .insert(podcastCities)
+            .select();
+
+          if (citiesError) {
+            console.error("添加播客与城市关联时出错:", citiesError);
+            // 不抛出错误，继续返回播客数据
+          } else {
+            console.log("播客与城市关联创建成功:", citiesData);
+          }
+        } else {
+          console.log("没有成功创建或找到任何城市，跳过创建关联");
+        }
       }
 
       return {

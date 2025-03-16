@@ -37,16 +37,18 @@ export default function Home() {
   
   if (showBooks) {
     filteredBooks.forEach(book => {
-      book.countries.forEach(country => {
-        countriesToShow.add(country.code)
+      // 从城市中获取国家代码
+      book.cities.forEach(city => {
+        countriesToShow.add(city.country_code)
       })
     })
   }
   
   if (showPodcasts) {
     filteredPodcasts.forEach(podcast => {
-      podcast.countries.forEach(country => {
-        countriesToShow.add(country.code)
+      // 从城市中获取国家代码
+      podcast.cities.forEach(city => {
+        countriesToShow.add(city.country_code)
       })
     })
   }
@@ -98,13 +100,13 @@ export default function Home() {
   const handleCountryClick = (countryCode: string) => {
     console.log("点击了国家:", countryCode)
     
-    // 查找与该国家相关的书籍和播客
+    // 查找与该国家相关的书籍和播客（通过城市的国家代码）
     const relatedBooks = filteredBooks.filter(book => 
-      book.countries.some(country => country.code === countryCode)
+      book.cities.some(city => city.country_code === countryCode)
     )
     
     const relatedPodcasts = filteredPodcasts.filter(podcast => 
-      podcast.countries.some(country => country.code === countryCode)
+      podcast.cities.some(city => city.country_code === countryCode)
     )
     
     // 这里可以显示相关内容列表或其他交互
@@ -172,9 +174,9 @@ export default function Home() {
             }
           </p>
           <div className="flex flex-wrap gap-1 mb-2">
-            {selectedItem.item.countries.map(country => (
-              <span key={country.code} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
-                {country.name}
+            {selectedItem.item.cities.map(city => (
+              <span key={city.id} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
+                {city.name} ({city.country_name})
               </span>
             ))}
           </div>

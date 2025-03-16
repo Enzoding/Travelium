@@ -44,14 +44,14 @@ export function AddButton({ onAddBook, onAddPodcast, className }: AddButtonProps
               <Button
                 onClick={handleAddBook}
                 variant="secondary"
-                className="shadow-md"
+                className="shadow-md bg-white text-gray-900"
               >
                 添加书籍
               </Button>
               <Button
                 onClick={handleAddPodcast}
                 variant="secondary"
-                className="shadow-md"
+                className="shadow-md bg-white text-gray-900"
               >
                 添加播客
               </Button>
@@ -63,7 +63,7 @@ export function AddButton({ onAddBook, onAddPodcast, className }: AddButtonProps
       <Button
         onClick={toggleMenu}
         size="icon"
-        className="h-12 w-12 rounded-full shadow-lg"
+        className="h-12 w-12 rounded-full shadow-lg bg-white text-gray-900"
       >
         <Plus className="h-6 w-6" />
       </Button>

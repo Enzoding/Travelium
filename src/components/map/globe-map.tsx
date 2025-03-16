@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Book, Country, Podcast } from '@/types';
+import { Book, City, Country, Podcast } from '@/types';
 
 interface GlobeMapProps {
   className?: string;
@@ -15,6 +15,9 @@ interface GlobeMapProps {
   onCountryClick?: (countryCode: string) => void;
   onCountryHover?: (countryCode: string) => void;
 }
+
+// 用于缓存已获取的城市坐标
+const cityCoordinatesCache: Record<string, [number, number]> = {};
 
 function GlobeMap({ 
   className, 
@@ -31,6 +34,8 @@ function GlobeMap({
   const [mapLoaded, setMapLoaded] = useState(false);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const hoveredCountryIdRef = useRef<string | null>(null);
+  const [pendingGeocodeRequests, setPendingGeocodeRequests] = useState(0);
+  const [geocodeComplete, setGeocodeComplete] = useState(false);
 
   // 清除所有标记
   const clearMarkers = () => {
@@ -38,79 +43,141 @@ function GlobeMap({
     markersRef.current = [];
   };
 
+  // 使用 Mapbox Geocoding API 获取城市坐标
+  const geocodeCity = async (cityName: string, countryCode: string): Promise<[number, number] | null> => {
+    // 创建缓存键
+    const cacheKey = `${cityName}-${countryCode}`;
+    
+    // 如果已经在缓存中，直接返回
+    if (cityCoordinatesCache[cacheKey]) {
+      return cityCoordinatesCache[cacheKey];
+    }
+    
+    try {
+      // 构建 Geocoding API 请求 URL
+      // 限制搜索结果为指定国家代码，提高准确性
+      const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(cityName)}.json?country=${countryCode.toLowerCase()}&types=place&access_token=${accessToken}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.features && data.features.length > 0) {
+        // Mapbox 返回的坐标是 [经度, 纬度] 格式
+        const coordinates: [number, number] = [
+          data.features[0].center[0],
+          data.features[0].center[1]
+        ];
+        
+        // 保存到缓存
+        cityCoordinatesCache[cacheKey] = coordinates;
+        return coordinates;
+      }
+      
+      console.warn(`未找到城市坐标: ${cityName}, ${countryCode}`);
+      return null;
+    } catch (error) {
+      console.error(`获取城市坐标失败: ${cityName}, ${countryCode}`, error);
+      return null;
+    }
+  };
+
   // 添加标记到地图
-  const addMarkers = () => {
+  const addMarkers = async () => {
     if (!map.current || !mapLoaded) return;
     
     clearMarkers();
+    
+    // 重置地理编码状态
+    setPendingGeocodeRequests(0);
+    setGeocodeComplete(false);
+    
+    let pendingRequests = 0;
 
     // 处理书籍标记
-    books.forEach(book => {
-      book.countries.forEach(country => {
-        // 这里需要根据国家代码获取经纬度坐标
-        // 实际应用中应该有一个国家代码到经纬度的映射
-        const coordinates = getCountryCoordinates(country.code);
-        if (!coordinates || !map.current) return;
+    for (const book of books) {
+      for (const city of book.cities) {
+        pendingRequests++;
+        setPendingGeocodeRequests(prev => prev + 1);
+        
+        // 使用城市名称和国家代码获取坐标
+        const coordinates = await geocodeCity(city.name, city.country_code);
+        
+        if (coordinates && map.current) {
+          const el = document.createElement('div');
+          el.className = 'book-marker';
+          el.style.width = '24px';
+          el.style.height = '24px';
+          el.style.backgroundImage = 'url(/icons/book-marker.svg)';
+          el.style.backgroundSize = 'cover';
+          el.style.cursor = 'pointer';
 
-        const el = document.createElement('div');
-        el.className = 'book-marker';
-        el.style.width = '24px';
-        el.style.height = '24px';
-        el.style.backgroundImage = 'url(/icons/book-marker.svg)';
-        el.style.backgroundSize = 'cover';
-        el.style.cursor = 'pointer';
+          const marker = new mapboxgl.Marker(el)
+            .setLngLat(coordinates)
+            .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(`${city.name} - ${book.title}`))
+            .addTo(map.current);
 
-        const marker = new mapboxgl.Marker(el)
-          .setLngLat(coordinates)
-          .addTo(map.current);
+          el.addEventListener('click', () => {
+            onMarkerClick?.('book', book);
+          });
 
-        // 添加点击事件
-        el.addEventListener('click', () => {
-          onMarkerClick?.('book', book);
-        });
-
-        markersRef.current.push(marker);
-      });
-    });
+          markersRef.current.push(marker);
+        }
+        
+        setPendingGeocodeRequests(prev => prev - 1);
+      }
+    }
 
     // 处理播客标记
-    podcasts.forEach(podcast => {
-      podcast.countries.forEach(country => {
-        const coordinates = getCountryCoordinates(country.code);
-        if (!coordinates || !map.current) return;
+    for (const podcast of podcasts) {
+      for (const city of podcast.cities) {
+        pendingRequests++;
+        setPendingGeocodeRequests(prev => prev + 1);
+        
+        // 使用城市名称和国家代码获取坐标
+        const coordinates = await geocodeCity(city.name, city.country_code);
+        
+        if (coordinates && map.current) {
+          const el = document.createElement('div');
+          el.className = 'podcast-marker';
+          el.style.width = '24px';
+          el.style.height = '24px';
+          el.style.backgroundImage = 'url(/icons/podcast-marker.svg)';
+          el.style.backgroundSize = 'cover';
+          el.style.cursor = 'pointer';
 
-        const el = document.createElement('div');
-        el.className = 'podcast-marker';
-        el.style.width = '24px';
-        el.style.height = '24px';
-        el.style.backgroundImage = 'url(/icons/podcast-marker.svg)';
-        el.style.backgroundSize = 'cover';
-        el.style.cursor = 'pointer';
+          const marker = new mapboxgl.Marker(el)
+            .setLngLat(coordinates)
+            .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(`${city.name} - ${podcast.title}`))
+            .addTo(map.current);
 
-        const marker = new mapboxgl.Marker(el)
-          .setLngLat(coordinates)
-          .addTo(map.current);
+          el.addEventListener('click', () => {
+            onMarkerClick?.('podcast', podcast);
+          });
 
-        // 添加点击事件
-        el.addEventListener('click', () => {
-          onMarkerClick?.('podcast', podcast);
-        });
-
-        markersRef.current.push(marker);
-      });
-    });
+          markersRef.current.push(marker);
+        }
+        
+        setPendingGeocodeRequests(prev => prev - 1);
+      }
+    }
+    
+    // 如果没有请求，直接设置为完成
+    if (pendingRequests === 0) {
+      setGeocodeComplete(true);
+    }
   };
 
   // 高亮国家
   const highlightCountries = () => {
     if (!map.current || !mapLoaded) return;
 
-    // 获取所有相关国家
+    // 获取所有相关国家代码
     const countryCodesList = countryCodes.length > 0 
       ? countryCodes 
       : [...new Set([
-          ...books.flatMap(book => book.countries.map(country => country.code)),
-          ...podcasts.flatMap(podcast => podcast.countries.map(country => country.code))
+          ...books.flatMap(book => book.cities.map(city => city.country_code)),
+          ...podcasts.flatMap(podcast => podcast.cities.map(city => city.country_code))
         ])];
     
     // 移除现有的高亮图层
@@ -120,7 +187,6 @@ function GlobeMap({
 
     // 如果有相关国家，添加高亮图层
     if (countryCodesList.length > 0) {
-      // 添加高亮图层
       map.current.addLayer({
         id: 'countries-highlighted',
         type: 'fill',
@@ -130,8 +196,8 @@ function GlobeMap({
           'fill-color': [
             'case',
             ['in', ['get', 'iso_3166_1'], ['literal', countryCodesList]],
-            'rgba(65, 105, 225, 0.4)', // 高亮颜色
-            'rgba(0, 0, 0, 0)' // 透明
+            'rgba(65, 105, 225, 0.4)', 
+            'rgba(0, 0, 0, 0)' 
           ],
           'fill-outline-color': 'rgba(65, 105, 225, 0.8)'
         },
@@ -140,40 +206,10 @@ function GlobeMap({
     }
   };
 
-  // 模拟国家代码到经纬度的映射
-  // 实际应用中应该使用真实的地理数据
-  const getCountryCoordinates = (countryCode: string): [number, number] | null => {
-    const coordinates: Record<string, [number, number]> = {
-      'US': [-95.7129, 37.0902],
-      'CN': [104.1954, 35.8617],
-      'JP': [138.2529, 36.2048],
-      'GB': [-3.4359, 55.3781],
-      'FR': [2.2137, 46.2276],
-      'DE': [10.4515, 51.1657],
-      'IT': [12.5674, 41.8719],
-      'ES': [-3.7492, 40.4637],
-      'AU': [133.7751, -25.2744],
-      'BR': [-51.9253, -14.2350],
-      'CA': [-106.3468, 56.1304],
-      'IN': [78.9629, 20.5937],
-      'RU': [105.3188, 61.5240],
-      'ZA': [22.9375, -30.5595],
-      'MX': [-102.5528, 23.6345],
-      'AR': [-63.6167, -38.4161],
-      'TH': [100.9925, 15.8700],
-      'EG': [30.8025, 26.8206],
-      'KR': [127.7669, 35.9078],
-      'NZ': [174.8860, -40.9006],
-    };
-    
-    return coordinates[countryCode] || null;
-  };
-
   // 设置国家交互事件
   const setupCountryInteractions = () => {
     if (!map.current || !mapLoaded) return;
 
-    // 添加国家点击事件
     map.current.on('click', 'countries-highlighted', (e) => {
       if (!e.features || e.features.length === 0) return;
       
@@ -183,7 +219,6 @@ function GlobeMap({
       }
     });
 
-    // 添加国家悬停事件
     map.current.on('mousemove', 'countries-highlighted', (e) => {
       if (!e.features || e.features.length === 0) return;
       
@@ -212,7 +247,6 @@ function GlobeMap({
       }
     });
 
-    // 鼠标离开事件
     map.current.on('mouseleave', 'countries-highlighted', () => {
       if (hoveredCountryIdRef.current) {
         map.current?.setFeatureState(
@@ -227,7 +261,6 @@ function GlobeMap({
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // 这里需要设置 Mapbox 访问令牌，将在实际部署时从环境变量中获取
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
 
     if (mapboxgl.accessToken === '') {
@@ -237,31 +270,28 @@ function GlobeMap({
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11', // 使用浅色地图样式
-      center: [0, 20], // 初始中心点
-      zoom: 1.5, // 初始缩放级别
-      projection: 'globe', // 使用球形投影
+      style: 'mapbox://styles/mapbox/light-v11', 
+      center: [0, 20], 
+      zoom: 1.5, 
+      projection: 'globe', 
     });
 
     map.current.on('load', () => {
       if (!map.current) return;
       
-      // 添加大气层效果
       map.current.setFog({
-        color: 'rgb(220, 230, 240)', // 浅色大气层颜色
-        'high-color': 'rgb(180, 200, 230)', // 高空大气层颜色
-        'horizon-blend': 0.02, // 地平线混合
-        'space-color': 'rgb(200, 220, 240)', // 太空颜色
-        'star-intensity': 0.2, // 星星亮度
+        color: 'rgb(220, 230, 240)', 
+        'high-color': 'rgb(180, 200, 230)', 
+        'horizon-blend': 0.02, 
+        'space-color': 'rgb(200, 220, 240)', 
+        'star-intensity': 0.2, 
       });
 
-      // 加载国家边界数据
       map.current.addSource('countries', {
         type: 'vector',
         url: 'mapbox://mapbox.country-boundaries-v1'
       });
 
-      // 添加国家边界线图层
       map.current.addLayer({
         id: 'countries-boundaries',
         type: 'line',
@@ -280,7 +310,6 @@ function GlobeMap({
       setupCountryInteractions();
     });
 
-    // 清理函数
     return () => {
       if (map.current) {
         map.current.remove();
@@ -288,6 +317,13 @@ function GlobeMap({
       }
     };
   }, []);
+
+  // 当地理编码请求状态变化时，检查是否所有请求都已完成
+  useEffect(() => {
+    if (pendingGeocodeRequests === 0 && !geocodeComplete) {
+      setGeocodeComplete(true);
+    }
+  }, [pendingGeocodeRequests, geocodeComplete]);
 
   // 当书籍、播客或国家代码数据变化时，更新标记和高亮
   useEffect(() => {
@@ -298,7 +334,13 @@ function GlobeMap({
   }, [books, podcasts, countryCodes, mapLoaded, showUserItems]);
 
   return (
-    <div ref={mapContainer} className={className || "w-full h-full"} />
+    <div ref={mapContainer} className={className || "w-full h-full"}>
+      {pendingGeocodeRequests > 0 && (
+        <div className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm rounded-md px-3 py-2 text-sm">
+          正在加载标记... ({pendingGeocodeRequests})
+        </div>
+      )}
+    </div>
   );
 }
 
