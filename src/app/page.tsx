@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useData } from "@/contexts/data-context"
 import { Book, Podcast } from "@/types"
@@ -12,7 +12,17 @@ import { Button } from "@/components/ui/button"
 
 export default function Home() {
   const { user } = useAuth()
-  const { books, podcasts, countries, addBook, addPodcast, isLoading } = useData()
+  const { 
+    books, 
+    podcasts, 
+    countries, 
+    addBook, 
+    addPodcast, 
+    isLoading,
+    fetchBooks,
+    fetchPodcasts,
+    fetchCountries
+  } = useData()
   
   const [showUserItems, setShowUserItems] = useState(false)
   const [showBooks, setShowBooks] = useState(true)
@@ -23,6 +33,38 @@ export default function Home() {
     type: "book" | "podcast";
     item: Book | Podcast;
   } | null>(null)
+  
+  // 使用 ref 来跟踪数据是否已加载，避免重复加载
+  const dataLoadedRef = useRef(false)
+  
+  // 当用户登录状态变化时加载数据，使用 ref 避免重复加载
+  useEffect(() => {
+    // 只在用户存在且数据未加载时加载数据
+    if (user && !dataLoadedRef.current) {
+      console.log("用户已登录，开始加载数据...", user.id)
+      
+      // 标记数据已开始加载
+      dataLoadedRef.current = true
+      
+      // 创建一个异步函数来处理数据加载
+      const loadData = async () => {
+        try {
+          // 按顺序加载数据，避免并发请求过多
+          await fetchCountries()
+          await fetchBooks()
+          await fetchPodcasts()
+          console.log("数据加载完成")
+        } catch (error) {
+          console.error("数据加载失败:", error)
+          // 如果加载失败，重置标记以便下次可以重试
+          dataLoadedRef.current = false
+        }
+      }
+      
+      // 执行数据加载
+      loadData()
+    }
+  }, [user, fetchBooks, fetchPodcasts, fetchCountries])
   
   // 过滤用户的书籍和播客
   const userBooks = showUserItems && user ? books.filter(book => book.userId === user.id) : books
