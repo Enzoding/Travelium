@@ -273,11 +273,29 @@ function GlobeMap({
       style: 'mapbox://styles/mapbox/light-v11', 
       center: [0, 20], 
       zoom: 1.5, 
-      projection: 'globe', 
+      projection: 'globe',
+      attributionControl: false, // 禁用属性控件
+      logoPosition: 'bottom-right', // 设置logo位置，后面会用CSS隐藏
+      localIdeographFontFamily: "'Noto Sans', 'Noto Sans CJK SC', sans-serif" // 支持中文字体
     });
+
+    // 添加自定义CSS来隐藏Mapbox标志
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .mapboxgl-ctrl-logo {
+        display: none !important;
+      }
+      .mapboxgl-ctrl-attrib {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
 
     map.current.on('load', () => {
       if (!map.current) return;
+      
+      // 设置地图语言为中文
+      map.current.setLanguage('zh-Hans');
       
       map.current.setFog({
         color: 'rgb(220, 230, 240)', 

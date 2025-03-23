@@ -5,10 +5,8 @@ import { useAuth } from "@/contexts/auth-context"
 import { useData } from "@/contexts/data-context"
 import { Book, Podcast } from "@/types"
 import GlobeMap from "@/components/map/globe-map"
-import UserNav from "@/components/nav/user-nav"
-import { AddButton } from "@/components/ui/add-button"
 import { AddContentForm } from "@/components/forms/add-content-form"
-import { Button } from "@/components/ui/button"
+import { AppMenubar } from "@/components/layout/app-menubar"
 
 export default function Home() {
   const { user } = useAuth()
@@ -111,15 +109,9 @@ export default function Home() {
     setAddDialogOpen(false)
   }
   
-  // 打开添加书籍对话框
-  const openAddBookDialog = () => {
+  // 打开添加内容对话框
+  const openAddDialog = () => {
     setAddContentType("book")
-    setAddDialogOpen(true)
-  }
-  
-  // 打开添加播客对话框
-  const openAddPodcastDialog = () => {
-    setAddContentType("podcast")
     setAddDialogOpen(true)
   }
   
@@ -163,14 +155,14 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen">
-      <header className="border-b py-2 px-4 flex justify-between items-center bg-white/80 backdrop-blur-sm z-10">
-        <h1 className="text-xl font-bold text-primary">Travelium</h1>
-        <div className="flex items-center gap-2">
-          <UserNav />
-        </div>
-      </header>
-      
       <main className="flex-1 relative overflow-hidden">
+        {/* 标题放在地球仪画布左上方 */}
+        <div className="absolute top-4 left-4 z-10">
+          <h1 className="text-2xl font-bold text-primary">
+            Travelium
+          </h1>
+        </div>
+        
         <GlobeMap 
           books={filteredBooks}
           podcasts={filteredPodcasts}
@@ -182,32 +174,38 @@ export default function Home() {
           className="w-full h-full"
         />
         
-        {/* 添加按钮 - 仅在用户登录时显示 */}
-        {user && (
-          <AddButton
-            onAddBook={openAddBookDialog}
-            onAddPodcast={openAddPodcastDialog}
-          />
-        )}
+        {/* 使用新的MenuBar组件 */}
+        <AppMenubar 
+          onAddBook={() => {
+            setAddContentType("book")
+            setAddDialogOpen(true)
+          }}
+          onAddPodcast={() => {
+            setAddContentType("podcast")
+            setAddDialogOpen(true)
+          }}
+        />
       </main>
       
       {/* 添加内容表单 */}
       {addDialogOpen && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md pointer-events-auto">
-          <AddContentForm
-            type={addContentType || "book"}
-            isOpen={addDialogOpen}
-            onClose={closeAddDialog}
-            onSubmit={handleFormSubmit}
-            countries={countries}
-            isLoading={isLoading}
-          />
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
+          <div className="w-full max-w-md">
+            <AddContentForm
+              type={addContentType || "book"}
+              isOpen={addDialogOpen}
+              onClose={closeAddDialog}
+              onSubmit={handleFormSubmit}
+              countries={countries}
+              isLoading={isLoading}
+            />
+          </div>
         </div>
       )}
       
       {/* 显示选中内容的详情 */}
       {selectedItem && (
-        <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white rounded-lg shadow-lg p-4 z-10">
+        <div className="absolute bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-4 z-10">
           <h3 className="text-lg font-medium mb-2">{selectedItem.item.title}</h3>
           <p className="text-sm text-gray-500 mb-4">
             {selectedItem.type === "book" 
@@ -222,14 +220,12 @@ export default function Home() {
               </span>
             ))}
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-gray-500" 
+          <button 
+            className="text-sm text-gray-500 hover:text-gray-700"
             onClick={() => setSelectedItem(null)}
           >
             关闭
-          </Button>
+          </button>
         </div>
       )}
     </div>
