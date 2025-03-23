@@ -75,3 +75,30 @@ body {
   color: hsl(var(--foreground));
   font-feature-settings: "rlig" 1, "calt" 1;
 }
+
+/* 防止Mapbox地图加载时黑色闪现 */
+.mapboxgl-canvas-container,
+.mapboxgl-canvas,
+.mapboxgl-map {
+  background-color: rgb(220, 245, 255) !important;
+}
+
+/* 隐藏Mapbox标志和属性信息 */
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib {
+  display: none !important;
+}
+
+/* 地图加载状态样式 */
+.map-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgb(220, 245, 255);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}

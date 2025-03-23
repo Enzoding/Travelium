@@ -32,6 +32,8 @@ function GlobeMap({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapInitialized, setMapInitialized] = useState(false);
+  const [mapStyleLoaded, setMapStyleLoaded] = useState(false);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const hoveredCountryIdRef = useRef<string | null>(null);
   const [pendingGeocodeRequests, setPendingGeocodeRequests] = useState(0);
@@ -261,6 +263,17 @@ function GlobeMap({
   useEffect(() => {
     if (!mapContainer.current) return;
 
+    // 添加预加载样式，防止黑色闪现
+    const preloadStyle = document.createElement('style');
+    preloadStyle.innerHTML = `
+      .mapboxgl-canvas-container,
+      .mapboxgl-canvas,
+      .mapboxgl-map {
+        background-color: rgb(220, 245, 255) !important;
+      }
+    `;
+    document.head.appendChild(preloadStyle);
+
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
 
     if (mapboxgl.accessToken === '') {
@@ -268,28 +281,46 @@ function GlobeMap({
       return;
     }
 
+    // 预加载地图样式
+    const preloadMapStyle = async () => {
+      try {
+        // 预先获取地图样式，减少加载时间
+        await fetch('https://api.mapbox.com/styles/v1/mapbox/outdoors-v12?access_token=' + mapboxgl.accessToken);
+      } catch (e) {
+        console.error('预加载地图样式失败', e);
+      }
+    };
+    
+    preloadMapStyle();
+
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11', 
+      style: 'mapbox://styles/mapbox/outdoors-v12', 
       center: [0, 20], 
       zoom: 1.5, 
       projection: 'globe',
       attributionControl: false, // 禁用属性控件
-      logoPosition: 'bottom-right', // 设置logo位置，后面会用CSS隐藏
-      localIdeographFontFamily: "'Noto Sans', 'Noto Sans CJK SC', sans-serif" // 支持中文字体
+      logoPosition: 'bottom-right', // 设置logo位置
+      localIdeographFontFamily: "'Noto Sans', 'Noto Sans CJK SC', sans-serif", // 支持中文字体
+      fadeDuration: 0, // 消除样式切换时的渐变效果
+      renderWorldCopies: true, // 渲染多个世界副本
+      preserveDrawingBuffer: true, // 保留绘图缓冲区
+      transformRequest: (url, resourceType) => {
+        // 为样式请求添加缓存控制
+        if (resourceType === 'Style' && !url.includes('?')) {
+          return { url: url + '?optimize=true' };
+        }
+        return { url };
+      }
     });
 
-    // 添加自定义CSS来隐藏Mapbox标志
-    const style = document.createElement('style');
-    style.innerHTML = `
-      .mapboxgl-ctrl-logo {
-        display: none !important;
-      }
-      .mapboxgl-ctrl-attrib {
-        display: none !important;
-      }
-    `;
-    document.head.appendChild(style);
+    // 地图初始化完成
+    map.current.on('styledata', () => {
+      setMapInitialized(true);
+      setTimeout(() => {
+        setMapStyleLoaded(true);
+      }, 100);
+    });
 
     map.current.on('load', () => {
       if (!map.current) return;
@@ -297,12 +328,21 @@ function GlobeMap({
       // 设置地图语言为中文
       map.current.setLanguage('zh-Hans');
       
+      // 设置更清爽的雾化效果
       map.current.setFog({
-        color: 'rgb(220, 230, 240)', 
-        'high-color': 'rgb(180, 200, 230)', 
-        'horizon-blend': 0.02, 
-        'space-color': 'rgb(200, 220, 240)', 
-        'star-intensity': 0.2, 
+        color: 'rgb(220, 245, 255)', 
+        'high-color': 'rgb(180, 225, 255)', 
+        'horizon-blend': 0.015, 
+        'space-color': 'rgb(190, 230, 255)', 
+        'star-intensity': 0.4, 
+      });
+
+      // 添加大气层效果
+      map.current.setLight({
+        anchor: 'viewport',
+        color: 'white',
+        intensity: 0.4,
+        position: [1, 0, 0]
       });
 
       map.current.addSource('countries', {
@@ -317,9 +357,34 @@ function GlobeMap({
         'source-layer': 'country_boundaries',
         layout: {},
         paint: {
-          'line-color': 'rgba(100, 120, 160, 0.5)',
-          'line-width': 1
+          'line-color': 'rgba(100, 150, 200, 0.6)',
+          'line-width': 1.2
         }
+      });
+
+      // 移除水域颜色层，因为outdoors-v12主题已经包含了良好的水域颜色
+      // map.current.addLayer({
+      //   id: 'water-color',
+      //   type: 'fill',
+      //   source: 'countries',
+      //   'source-layer': 'water',
+      //   paint: {
+      //     'fill-color': 'rgba(170, 211, 223, 0.8)',
+      //     'fill-opacity': 0.8
+      //   }
+      // }, 'countries-boundaries');
+
+      // 添加地形高度渲染
+      map.current.addSource('terrain-data', {
+        type: 'raster-dem',
+        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        tileSize: 512
+      });
+
+      // 设置地形
+      map.current.setTerrain({
+        source: 'terrain-data',
+        exaggeration: 1.2 // 轻微夸大地形高度，使山脉更明显
       });
 
       setMapLoaded(true);
@@ -352,7 +417,13 @@ function GlobeMap({
   }, [books, podcasts, countryCodes, mapLoaded, showUserItems]);
 
   return (
-    <div ref={mapContainer} className={className || "w-full h-full"}>
+    <div className={`relative ${className || "w-full h-full"}`}>
+      {!mapStyleLoaded && (
+        <div className="map-loading-overlay">
+          <div className="text-lg font-medium text-gray-600">加载地图中...</div>
+        </div>
+      )}
+      <div ref={mapContainer} className="w-full h-full" />
       {pendingGeocodeRequests > 0 && (
         <div className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm rounded-md px-3 py-2 text-sm">
           正在加载标记... ({pendingGeocodeRequests})
