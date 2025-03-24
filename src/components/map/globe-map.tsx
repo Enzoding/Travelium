@@ -341,7 +341,7 @@ function GlobeMap({
       map.current.setLight({
         anchor: 'viewport',
         color: 'white',
-        intensity: 0.4,
+        intensity: 0.1,
         position: [1, 0, 0]
       });
 
@@ -350,29 +350,17 @@ function GlobeMap({
         url: 'mapbox://mapbox.country-boundaries-v1'
       });
 
-      map.current.addLayer({
-        id: 'countries-boundaries',
-        type: 'line',
-        source: 'countries',
-        'source-layer': 'country_boundaries',
-        layout: {},
-        paint: {
-          'line-color': 'rgba(100, 150, 200, 0.6)',
-          'line-width': 1.2
-        }
-      });
-
-      // 移除水域颜色层，因为outdoors-v12主题已经包含了良好的水域颜色
       // map.current.addLayer({
-      //   id: 'water-color',
-      //   type: 'fill',
+      //   id: 'countries-boundaries',
+      //   type: 'line',
       //   source: 'countries',
-      //   'source-layer': 'water',
+      //   'source-layer': 'country_boundaries',
+      //   layout: {},
       //   paint: {
-      //     'fill-color': 'rgba(170, 211, 223, 0.8)',
-      //     'fill-opacity': 0.8
+      //     'line-color': 'rgba(100, 150, 200, 0.6)',
+      //     'line-width': 1.2
       //   }
-      // }, 'countries-boundaries');
+      // });
 
       // 添加地形高度渲染
       map.current.addSource('terrain-data', {
