@@ -59,10 +59,10 @@
 
 @layer base {
   * {
-    @apply border-neutral-200 dark:border-neutral-800;
+    @apply border-slate-200 dark:border-slate-800;
   }
   body {
-    @apply bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50;
+    @apply bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50;
   }
 }
 
