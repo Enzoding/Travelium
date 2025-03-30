@@ -46,9 +46,9 @@ function GlobeMap({
   };
 
   // 使用 Mapbox Geocoding API 获取城市坐标
-  const geocodeCity = async (cityName: string, countryCode: string): Promise<[number, number] | null> => {
+  const geocodeCity = async (cityName: string, countryCode?: string): Promise<[number, number] | null> => {
     // 创建缓存键
-    const cacheKey = `${cityName}-${countryCode}`;
+    const cacheKey = `${cityName}-${countryCode || 'unknown'}`;
     
     // 如果已经在缓存中，直接返回
     if (cityCoordinatesCache[cacheKey]) {
@@ -57,9 +57,13 @@ function GlobeMap({
     
     try {
       // 构建 Geocoding API 请求 URL
-      // 限制搜索结果为指定国家代码，提高准确性
       const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(cityName)}.json?country=${countryCode.toLowerCase()}&types=place&access_token=${accessToken}`;
+      let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(cityName)}.json?types=place&access_token=${accessToken}`;
+      
+      // 如果有国家代码，限制搜索结果为指定国家，提高准确性
+      if (countryCode) {
+        url += `&country=${countryCode.toLowerCase()}`;
+      }
       
       const response = await fetch(url);
       const data = await response.json();
@@ -76,10 +80,10 @@ function GlobeMap({
         return coordinates;
       }
       
-      console.warn(`未找到城市坐标: ${cityName}, ${countryCode}`);
+      console.warn(`未找到城市坐标: ${cityName}, ${countryCode || 'unknown'}`);
       return null;
     } catch (error) {
-      console.error(`获取城市坐标失败: ${cityName}, ${countryCode}`, error);
+      console.error(`获取城市坐标失败: ${cityName}, ${countryCode || 'unknown'}`, error);
       return null;
     }
   };
@@ -174,13 +178,15 @@ function GlobeMap({
   const highlightCountries = () => {
     if (!map.current || !mapLoaded) return;
 
-    // 获取所有相关国家代码
-    const countryCodesList = countryCodes.length > 0 
-      ? countryCodes 
-      : [...new Set([
-          ...books.flatMap(book => book.cities.map(city => city.country_code)),
-          ...podcasts.flatMap(podcast => podcast.cities.map(city => city.country_code))
-        ])];
+    // 获取所有相关国家代码，过滤掉undefined和null
+    const allCountryCodes = [
+      ...countryCodes,
+      ...books.flatMap(book => book.cities.map(city => city.country_code)),
+      ...podcasts.flatMap(podcast => podcast.cities.map(city => city.country_code))
+    ].filter(Boolean); // 过滤掉undefined和null
+    
+    // 去重
+    const countryCodesList = [...new Set(allCountryCodes)];
     
     // 移除现有的高亮图层
     if (map.current.getLayer('countries-highlighted')) {
@@ -189,22 +195,26 @@ function GlobeMap({
 
     // 如果有相关国家，添加高亮图层
     if (countryCodesList.length > 0) {
-      map.current.addLayer({
-        id: 'countries-highlighted',
-        type: 'fill',
-        source: 'countries',
-        'source-layer': 'country_boundaries',
-        paint: {
-          'fill-color': [
-            'case',
-            ['in', ['get', 'iso_3166_1'], ['literal', countryCodesList]],
-            'rgba(65, 105, 225, 0.4)', 
-            'rgba(0, 0, 0, 0)' 
-          ],
-          'fill-outline-color': 'rgba(65, 105, 225, 0.8)'
-        },
-        filter: ['in', ['get', 'iso_3166_1'], ['literal', countryCodesList]]
-      });
+      try {
+        map.current.addLayer({
+          id: 'countries-highlighted',
+          type: 'fill',
+          source: 'countries',
+          'source-layer': 'country_boundaries',
+          paint: {
+            'fill-color': [
+              'case',
+              ['in', ['get', 'iso_3166_1'], ['literal', countryCodesList]],
+              'rgba(65, 105, 225, 0.4)', 
+              'rgba(0, 0, 0, 0)' 
+            ],
+            'fill-outline-color': 'rgba(65, 105, 225, 0.8)'
+          },
+          filter: ['in', ['get', 'iso_3166_1'], ['literal', countryCodesList]]
+        });
+      } catch (error) {
+        console.error('添加国家高亮图层时出错:', error);
+      }
     }
   };
 

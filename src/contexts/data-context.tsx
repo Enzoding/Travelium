@@ -2,11 +2,23 @@
 
 import { createContext, useContext, useState } from "react"
 import { DataService } from "@/lib/supabase/data-service"
-import { Book, BookWithoutId, Country, Podcast, PodcastWithoutId } from "@/types"
+import { Book, BookWithoutId, Content, ContentType, ContentWithoutId, Country, Podcast, PodcastWithoutId, Profile } from "@/types"
 import { useAuth } from "./auth-context"
 
 interface DataContextProps {
-  // 书籍相关
+  // 内容相关
+  contents: Content[]
+  isLoadingContents: boolean
+  fetchContents: (type?: ContentType) => Promise<void>
+  addContent: (content: ContentWithoutId) => Promise<void>
+  
+  // 用户配置文件相关
+  profile: Profile | null
+  isLoadingProfile: boolean
+  fetchProfile: () => Promise<void>
+  updateProfile: (profile: Partial<Profile>) => Promise<void>
+  
+  // 书籍相关 (向后兼容)
   books: Book[]
   isLoadingBooks: boolean
   fetchBooks: () => Promise<void>
@@ -14,7 +26,7 @@ interface DataContextProps {
   updateBook: (id: string, book: BookWithoutId) => Promise<void>
   deleteBook: (id: string) => Promise<void>
   
-  // 播客相关
+  // 播客相关 (向后兼容)
   podcasts: Podcast[]
   isLoadingPodcasts: boolean
   fetchPodcasts: () => Promise<void>
@@ -40,11 +52,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const dataService = new DataService()
   const { user } = useAuth()
   
-  // 书籍状态
+  // 内容状态
+  const [contents, setContents] = useState<Content[]>([])
+  const [isLoadingContents, setIsLoadingContents] = useState(false)
+  
+  // 用户配置文件状态
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false)
+  
+  // 书籍状态 (向后兼容)
   const [books, setBooks] = useState<Book[]>([])
   const [isLoadingBooks, setIsLoadingBooks] = useState(false)
   
-  // 播客状态
+  // 播客状态 (向后兼容)
   const [podcasts, setPodcasts] = useState<Podcast[]>([])
   const [isLoadingPodcasts, setIsLoadingPodcasts] = useState(false)
   
@@ -58,7 +78,92 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // 通用加载状态
   const [isLoading, setIsLoading] = useState(false)
   
-  // 获取书籍列表
+  // 获取内容列表
+  const fetchContents = async (type?: ContentType) => {
+    if (!user) return
+    
+    setIsLoading(true)
+    setIsLoadingContents(true)
+    setError(null)
+    try {
+      const contents = await dataService.getContents(user.id, type)
+      setContents(contents)
+    } catch (error) {
+      console.error("获取内容列表时出错:", error)
+      setError((error as Error).message)
+    } finally {
+      setIsLoading(false)
+      setIsLoadingContents(false)
+    }
+  }
+  
+  // 添加内容
+  const addContent = async (content: ContentWithoutId) => {
+    if (!user) return
+    
+    setIsLoading(true)
+    setIsLoadingContents(true)
+    setError(null)
+    try {
+      const newContent = await dataService.addContent(content, user.id)
+      setContents((prev) => [newContent, ...prev])
+      
+      // 如果是书籍或播客，更新对应的状态
+      if (content.type === ContentType.Book) {
+        // 触发书籍列表更新
+        fetchBooks()
+      } else if (content.type === ContentType.Podcast) {
+        // 触发播客列表更新
+        fetchPodcasts()
+      }
+    } catch (error) {
+      console.error("添加内容时出错:", error)
+      setError((error as Error).message)
+    } finally {
+      setIsLoading(false)
+      setIsLoadingContents(false)
+    }
+  }
+  
+  // 获取用户配置文件
+  const fetchProfile = async () => {
+    if (!user) return
+    
+    setIsLoading(true)
+    setIsLoadingProfile(true)
+    setError(null)
+    try {
+      const profile = await dataService.getProfile(user.id)
+      setProfile(profile)
+    } catch (error) {
+      console.error("获取用户配置文件时出错:", error)
+      setError((error as Error).message)
+    } finally {
+      setIsLoading(false)
+      setIsLoadingProfile(false)
+    }
+  }
+  
+  // 更新用户配置文件
+  const updateProfile = async (profileData: Partial<Profile>) => {
+    if (!user) return
+    
+    setIsLoading(true)
+    setIsLoadingProfile(true)
+    setError(null)
+    try {
+      const updatedProfile = await dataService.updateProfile(user.id, profileData)
+      setProfile(updatedProfile)
+    } catch (error) {
+      console.error("更新用户配置文件时出错:", error)
+      setError((error as Error).message)
+    } finally {
+      setIsLoading(false)
+      setIsLoadingProfile(false)
+    }
+  }
+  
+  // 获取书籍列表 (向后兼容)
   const fetchBooks = async () => {
     if (!user) return
     
@@ -77,7 +182,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }
   
-  // 添加书籍
+  // 添加书籍 (向后兼容)
   const addBook = async (book: BookWithoutId) => {
     if (!user) return
     
@@ -96,7 +201,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }
   
-  // 更新书籍
+  // 更新书籍 (向后兼容)
   const updateBook = async (id: string, book: BookWithoutId) => {
     if (!user) return
     
@@ -115,7 +220,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }
   
-  // 删除书籍
+  // 删除书籍 (向后兼容)
   const deleteBook = async (id: string) => {
     if (!user) return
     
@@ -134,7 +239,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }
   
-  // 获取播客列表
+  // 获取播客列表 (向后兼容)
   const fetchPodcasts = async () => {
     if (!user) return
     
@@ -153,7 +258,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }
   
-  // 添加播客
+  // 添加播客 (向后兼容)
   const addPodcast = async (podcast: PodcastWithoutId) => {
     if (!user) return
     
@@ -172,7 +277,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }
   
-  // 更新播客
+  // 更新播客 (向后兼容)
   const updatePodcast = async (id: string, podcast: PodcastWithoutId) => {
     if (!user) return
     
@@ -191,7 +296,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }
   
-  // 删除播客
+  // 删除播客 (向后兼容)
   const deletePodcast = async (id: string) => {
     if (!user) return
     
@@ -228,7 +333,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }
   
   const value = {
-    // 书籍相关
+    // 内容相关
+    contents,
+    isLoadingContents,
+    fetchContents,
+    addContent,
+    
+    // 用户配置文件相关
+    profile,
+    isLoadingProfile,
+    fetchProfile,
+    updateProfile,
+    
+    // 书籍相关 (向后兼容)
     books,
     isLoadingBooks,
     fetchBooks,
@@ -236,7 +353,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     updateBook,
     deleteBook,
     
-    // 播客相关
+    // 播客相关 (向后兼容)
     podcasts,
     isLoadingPodcasts,
     fetchPodcasts,
